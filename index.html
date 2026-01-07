@@ -205,10 +205,17 @@ db.ref('.info/connected').on('value', function(snap){
     connectionEl.style.color = '#f00';
   }
 });
+  } else {
+    connectionEl.textContent = '● Соединение потеряно';
+    connectionEl.style.color = '#f00';
+  }
+});
 
 setInterval(function(){
   if(navigator.onLine){
     updatePing();
+  }
+}, 3000);
   }
 }, 5000);
 
