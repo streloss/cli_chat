@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>CLI Chat</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+    body {
+        margin: 0;
+        background: black;
+        color: #ffffff;
+        font-family: monospace;
+        font-size: 16px;
+    }
+    #typing {
+        padding: 8px 10px;
+        color: #888;
+        font-size: 14px;
+        border-bottom: 1px solid #222;
+    }
+    #terminal {
+        padding: 10px;
+        height: calc(100vh - 120px); /* место под статус и ввод */
+        overflow-y: auto;
+        white-space: pre-wrap;
+    }
+    #input {
+        outline: none;
+        border: none;
+        background: black;
+        color: #ffffff;
+        font-family: monospace;
+        font-size: 16px;
+        width: 100%;
+        position: fixed;
+        bottom: 20px;
+        left: 0;
+        padding: 5px 10px;
+    }
+</style>
+</head>
+<body>
+
+<div id="typing">Никто не печатает</div>
+<div id="terminal"></div>
+<input id="input" autocomplete="off" autofocus placeholder="Введите сообщение и нажмите Enter">
+
+<script>
+    const terminal = document.getElementById('terminal');
+    const input = document.getElementById('input');
+    const typingEl = document.getElementById('typing');
+
+    const username = 'user_' + Math.floor(Math.random() * 1000);
+    const STORAGE_KEY = 'cli_chat_messages';
+    const TYPING_KEY = 'cli_chat_typing_users';
+
+    function loadMessages() {
+        const messages = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        terminal.textContent = '';
+        messages.forEach(m => {
+            terminal.textContent += `[${m.time}] ${m.user}: ${m.text}\n`;
+        });
+        terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    function saveMessage(text) {
+        const messages = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        messages.push({
+            user: username,
+            text: text,
+            time: new Date().toLocaleTimeString()
+        });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+        removeTyping();
+    }
+
+    function setTyping() {
+        const users = JSON.parse(localStorage.getItem(TYPING_KEY) || '[]');
+        if (!users.includes(username)) {
+            users.push(username);
+            localStorage.setItem(TYPING_KEY, JSON.stringify(users));
+        }
+    }
+
+    function removeTyping() {
+        const users = JSON.parse(localStorage.getItem(TYPING_KEY) || '[]');
+        const filtered = users.filter(u => u !== username);
+        localStorage.setItem(TYPING_KEY, JSON.stringify(filtered));
+    }
+
+    function updateTypingStatus() {
+        const users = JSON.parse(localStorage.getItem(TYPING_KEY) || '[]');
+        if (users.length === 0) {
+            typingEl.textContent = 'Никто не печатает';
+        } else {
+            typingEl.textContent = users.join(', ') + ' печатает...';
+        }
+    }
+
+    input.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && input.value.trim() !== '') {
+            saveMessage(input.value);
+            input.value = '';
+            loadMessages();
+        }
+    });
+
+    input.addEventListener('input', () => {
+        if (input.value.trim() !== '') {
+            setTyping();
+        } else {
+            removeTyping();
+        }
+    });
+
+    window.addEventListener('storage', () => {
+        loadMessages();
+        updateTypingStatus();
+    });
+
+    terminal.textContent = `CLI Chat запущен\nВаш ник: ${username}\n-------------------------\n`;
+    loadMessages();
+    updateTypingStatus();
+</script>
+</body>
+</html>
