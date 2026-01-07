@@ -25,12 +25,31 @@ body{margin:0;background:#000;color:#fff;font-family:monospace}
 
 <script>
 // ===== KEYS =====
-const ADMIN_KEY = 'tenge22';
-const OWNER_KEY = 'tenge';
+const ADMIN_KEY = 'ADMIN-1234';
+const OWNER_KEY = 'OWNER-ROOT-9999';
 
 // ===== STATE =====
 let role = localStorage.getItem('role') || 'USER';
 let userColor = localStorage.getItem('userColor') || '#ffffff';
+
+// ===== ENCRYPTION =====
+const CHAT_SECRET = 'CLI_CHAT_SECRET_2026'; // общий ключ
+
+function encrypt(text){
+  return btoa(unescape(encodeURIComponent(text + '|' + CHAT_SECRET)));
+}
+
+function decrypt(text){
+  try{
+    const decoded = decodeURIComponent(escape(atob(text)));
+    if(decoded.endsWith('|' + CHAT_SECRET)){
+      return decoded.replace('|' + CHAT_SECRET,'');
+    }
+    return '[НЕ УДАЛОСЬ РАСШИФРОВАТЬ]';
+  }catch(e){
+    return '[ОШИБКА ШИФРОВАНИЯ]';
+  }
+}
 
 // ===== USER =====
 let username = localStorage.getItem('nickname');
@@ -75,7 +94,7 @@ messagesRef.limitToLast(100).on('value', function(snap){
     if(m.role === 'OWNER') tag = '<span style="color:red;font-weight:bold">[OWNER]</span> ';
     else if(m.role === 'ADMIN') tag = '<span style="color:red">[ADMIN]</span> ';
 
-    terminal.innerHTML += '[' + m.time + '] ' + tag + '<span style="color:' + m.color + '">' + m.user + '</span>: ' + m.text + '<br>';
+    terminal.innerHTML += '[' + m.time + '] ' + tag + '<span style="color:' + m.color + '">' + m.user + '</span>: ' + decrypt(m.text) + '<br>';
   });
   terminal.scrollTop = terminal.scrollHeight;
 });
@@ -137,7 +156,7 @@ input.addEventListener('keydown', function(e){
   messagesRef.push({
     user: username,
     role: role,
-    text: text,
+    text: encrypt(text),
     time: new Date().toLocaleTimeString(),
     color: userColor
   });
