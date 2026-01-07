@@ -10,7 +10,7 @@
 
 <style>
 body{margin:0;background:#000;color:#fff;font-family:monospace}
-#terminal{padding:10px;height:calc(100vh - 120px);overflow-y:auto;white-space:pre-wrap}
+#terminal{padding:10px;height:calc(100vh - 120px);overflow-y:auto}
 #typing{position:fixed;bottom:70px;left:0;width:100%;padding:5px 10px;color:#888;font-size:14px}
 #input{position:fixed;bottom:20px;left:0;width:100%;background:#000;color:#fff;border:none;outline:none;font-family:monospace;font-size:16px;padding:5px 10px}
 </style>
@@ -19,24 +19,19 @@ body{margin:0;background:#000;color:#fff;font-family:monospace}
 
 <div id="terminal"></div>
 <div id="typing"></div>
-<input id="input" placeholder="Enter message and press Enter">
+<input id="input" placeholder="Введите сообщение и нажмите Enter">
 
 <script>
-// ===== CONFIG =====
+// ===== SETTINGS =====
 var ADMIN_KEY = 'CHANGE_ME_123';
 var isAdmin = localStorage.getItem('isAdmin') === 'true';
 var userColor = localStorage.getItem('userColor') || '#ffffff';
-
-// ===== UI =====
-var terminal = document.getElementById('terminal');
-var input = document.getElementById('input');
-var typingEl = document.getElementById('typing');
 
 // ===== USER =====
 var username = localStorage.getItem('nickname');
 if(!username){
   username = prompt('Введите ваш ник:');
-  if(!username){ username = 'user_' + Math.floor(Math.random()*1000); }
+  if(!username) username = 'user_' + Math.floor(Math.random()*1000);
   localStorage.setItem('nickname', username);
 }
 
@@ -53,26 +48,29 @@ var firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 var db = firebase.database();
-
 var messagesRef = db.ref('messages');
 var typingRef = db.ref('typing');
+
+// ===== UI =====
+var terminal = document.getElementById('terminal');
+var input = document.getElementById('input');
+var typingEl = document.getElementById('typing');
 
 // ===== RENDER =====
 function renderMessages(data){
   terminal.innerHTML = '';
   for(var k in data){
     var m = data[k];
+    var nameHtml = '';
 
-    var nameHtml;
-    if(m.user && m.user.indexOf('[ADMIN]') === 0){
+    if(m.user && m.user.indexOf('[ADMIN] ') === 0){
       var clean = m.user.replace('[ADMIN] ','');
-      nameHtml = '<span style="color:red;font-weight:bold">[ADMIN]</span> ' +
-                 '<span style="color:' + (m.color || '#ffffff') + '">' + clean + '</span>';
+      nameHtml = `<span style="color:red;font-weight:bold">[ADMIN]</span> <span style="color:${m.color || '#ffffff'}">${clean}</span>`;
     } else {
-      nameHtml = '<span style="color:' + (m.color || '#ffffff') + '">' + m.user + '</span>';
+      nameHtml = `<span style="color:${m.color || '#ffffff'}">${m.user}</span>`;
     }
 
-    terminal.innerHTML += '[' + m.time + '] ' + nameHtml + ': ' + m.text + '<br>';
+    terminal.innerHTML += `[${m.time}] ${nameHtml}: ${m.text}<br>`;
   }
   terminal.scrollTop = terminal.scrollHeight;
 }
@@ -87,36 +85,24 @@ input.addEventListener('keydown', function(e){
   var text = input.value.trim();
   if(!text) return;
 
-  // COLOR
-  if(text.indexOf('/color ') === 0){
-    userColor = text.substring(7).trim();
+  if(text.startsWith('/color ')){
+    userColor = text.slice(7).trim();
     localStorage.setItem('userColor', userColor);
-    messagesRef.push({user:'system',text:'Цвет установлен',time:new Date().toLocaleTimeString()});
     input.value = '';
     return;
   }
 
-  // ADMIN KEY
-  if(text.indexOf('/key ') === 0){
-    if(text.substring(5).trim() === ADMIN_KEY){
+  if(text.startsWith('/key ')){
+    if(text.slice(5).trim() === ADMIN_KEY){
       isAdmin = true;
       localStorage.setItem('isAdmin','true');
-      messagesRef.push({user:'system',text:'Вы вошли как ADMIN',time:new Date().toLocaleTimeString()});
-    } else {
-      messagesRef.push({user:'system',text:'Неверный ключ',time:new Date().toLocaleTimeString()});
     }
     input.value = '';
     return;
   }
 
-  // CLEAR
   if(text === '/clear'){
-    if(!isAdmin){
-      messagesRef.push({user:'system',text:'Нет прав',time:new Date().toLocaleTimeString()});
-      input.value = '';
-      return;
-    }
-    messagesRef.remove();
+    if(isAdmin) messagesRef.remove();
     input.value = '';
     return;
   }
@@ -144,7 +130,7 @@ typingRef.on('value', function(snap){
   typingEl.textContent = list.length ? list.join(', ') + ' печатает...' : '';
 });
 
-terminal.textContent = 'CLI Chat started\nYour nick: ' + username + '\n-------------------------\n';
+terminal.textContent = 'CLI Chat started\nВаш ник: ' + username + '\n-------------------------\n';
 </script>
 </body>
 </html>
