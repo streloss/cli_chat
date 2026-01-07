@@ -64,8 +64,17 @@ messagesRef.limitToLast(100).on('value', function(snap){
     if(userLabel.indexOf('[ADMIN]') === 0){
       userLabel = '<span style="color:red;font-weight:bold">[ADMIN]</span> ' + userLabel.replace('[ADMIN] ','');
     }
-    var color = m.color || '#ffffff';
-    terminal.innerHTML += '[' + m.time + '] <span style="color:' + color + '">' + userLabel + '</span>: ' + m.text + '<br>';
+    // Рендер сообщения с отдельным цветом для ADMIN
+    var nameHtml = '';
+    if(m.user.indexOf('[ADMIN]') === 0){
+      var cleanName = m.user.replace('[ADMIN] ','');
+      nameHtml = '<span style="color:red;font-weight:bold">[ADMIN]</span> ' +
+                 '<span style="color:' + (m.color || '#ffffff') + '">' + cleanName + '</span>';
+    } else {
+      nameHtml = '<span style="color:' + (m.color || '#ffffff') + '">' + m.user + '</span>';
+    }
+
+    terminal.innerHTML += '[' + m.time + '] ' + nameHtml + ': ' + m.text + '<br>';
   }
   terminal.scrollTop = terminal.scrollHeight;
 });
