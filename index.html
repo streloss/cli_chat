@@ -11,8 +11,9 @@
 <style>
 body{margin:0;background:#000;color:#fff;font-family:monospace}
 #typing{position:fixed;top:0;left:0;width:100%;padding:6px 12px;color:#0f0;background:#000;border-bottom:1px solid #222;z-index:10}
-#online{position:fixed;top:24px;left:0;width:100%;padding:4px 12px;font-size:12px;color:#0af;background:#000;border-bottom:1px solid #222}
-#terminal{padding:70px 10px 70px;height:100vh;overflow-y:auto;white-space:pre-wrap}
+#online{position:fixed;top:24px;left:0;width:100%;padding:4px 12px;font-size:12px;color:#0af;background:#000;border-bottom:1px solid #222;cursor:pointer}
+#onlineList{display:none;position:fixed;top:44px;left:0;width:100%;background:#000;border-bottom:1px solid #222;font-size:12px;padding:6px 12px;color:#ccc;z-index:9}
+#terminal{padding:90px 10px 70px;height:100vh;overflow-y:auto;white-space:pre-wrap}
 #input{position:fixed;bottom:28px;left:0;width:100%;background:#000;color:#fff;border:none;outline:none;font-family:monospace;font-size:16px;padding:6px 10px}
 #connection{position:fixed;bottom:0;left:0;width:100%;padding:6px 12px;font-size:13px;background:#000;border-top:1px solid #222;color:#888}
 </style>
@@ -21,12 +22,16 @@ body{margin:0;background:#000;color:#fff;font-family:monospace}
 
 <div id="typing"></div>
 <div id="online">В сети: 0</div>
+<div id="onlineList"></div>
 <div id="terminal"></div>
 <input id="input" placeholder="Введите сообщение и Enter">
 <div id="connection">● Инициализация...</div>
 
 <script>
-// ===== CONFIG =====
+// ===== PASSWORD =====
+const ACCESS_PASSWORD = 'sayayo';
+
+// ===== FIREBASE =====
 const firebaseConfig = {
   apiKey: "AIzaSyBzPbPhYS7dDfhDwaqYLAHpIV6QBN53EV0",
   authDomain: "project-7979939474542798395.firebaseapp.com",
@@ -47,27 +52,47 @@ if(!username){
   localStorage.setItem('nickname', username);
 }
 
+let role = localStorage.getItem('role') || 'USER';
+
 // ===== REFS =====
 const messagesRef = db.ref('messages');
 const typingRef = db.ref('typing');
 const presenceRef = db.ref('presence/'+username);
+const bansRef = db.ref('bans');
 
 // ===== UI =====
 const terminal = document.getElementById('terminal');
 const input = document.getElementById('input');
 const typingEl = document.getElementById('typing');
 const onlineEl = document.getElementById('online');
+const onlineListEl = document.getElementById('onlineList');
 const connectionEl = document.getElementById('connection');
+
+function system(msg){ terminal.innerHTML += '[SYSTEM] '+msg+'\n'; }
 
 terminal.textContent = 'CLI Chat started\nВаш ник: '+username+'\n-------------------------\n';
 
-// ===== PRESENCE (ONLINE COUNTER) =====
+// ===== PRESENCE =====
 presenceRef.set(true);
 presenceRef.onDisconnect().remove();
 
 db.ref('presence').on('value', snap=>{
-  const count = snap.numChildren();
-  onlineEl.textContent = 'В сети: ' + count;
+  const users = snap.val() || {};
+  const names = Object.keys(users);
+  onlineEl.textContent = 'В сети: ' + names.length;
+  onlineListEl.textContent = names.join(', ');
+});
+
+onlineEl.onclick = ()=>{
+  onlineListEl.style.display = onlineListEl.style.display === 'none' ? 'block' : 'none';
+};
+
+// ===== BAN CHECK =====
+bansRef.child(username).once('value', snap=>{
+  if(snap.exists()){
+    alert('Вы забанены');
+    input.disabled = true;
+  }
 });
 
 // ===== MESSAGES =====
@@ -75,27 +100,44 @@ messagesRef.limitToLast(100).on('value', snap=>{
   terminal.innerHTML = '';
   const data = snap.val() || {};
   Object.values(data).forEach(m=>{
-    terminal.innerHTML += `[${m.time}] ${m.user}: ${m.text}\n`;
+    let tag = '';
+    if(m.role === 'OWNER') tag='[OWNER] ';
+    else if(m.role === 'ADMIN') tag='[ADMIN] ';
+    terminal.innerHTML += `[${m.time}] ${tag}${m.user}: ${m.text}\n`;
   });
   terminal.scrollTop = terminal.scrollHeight;
 });
 
-// ===== INPUT =====
+// ===== INPUT + COMMANDS =====
 input.addEventListener('keydown', e=>{
   if(e.key !== 'Enter') return;
   const text = input.value.trim();
   if(!text) return;
 
-  messagesRef.push({
-    user: username,
-    text: text,
-    time: new Date().toLocaleTimeString()
-  });
+  // /key owner|admin sayayo
+  if(text.startsWith('/key ')){
+    const parts = text.split(' ');
+    if(parts.length === 3 && parts[2] === ACCESS_PASSWORD){
+      if(parts[1] === 'owner'){ role='OWNER'; localStorage.setItem('role','OWNER'); system('Вы вошли как OWNER'); }
+      else if(parts[1] === 'admin'){ role='ADMIN'; localStorage.setItem('role','ADMIN'); system('Вы вошли как ADMIN'); }
+      else system('Используй: /key owner sayayo или /key admin sayayo');
+    } else system('Неверный пароль');
+    input.value=''; return;
+  }
 
-  input.value = '';
-  typingRef.child(username).remove();
+  // /ban <nick>
+  if(text.startsWith('/ban ')){
+    if(role !== 'OWNER'){ system('Только OWNER'); input.value=''; return; }
+    const nick = text.slice(5).trim();
+    if(nick){ bansRef.child(nick).set(true); system('Забанен: '+nick); }
+    input.value=''; return;
+  }
+
+  messagesRef.push({ user: username, role: role, text: text, time: new Date().toLocaleTimeString() });
+  input.value=''; typingRef.child(username).remove();
 });
 
+// ===== TYPING =====
 input.addEventListener('input', ()=>{
   typingRef.child(username).set(true);
   setTimeout(()=>typingRef.child(username).remove(),1500);
@@ -104,7 +146,7 @@ input.addEventListener('input', ()=>{
 typingRef.on('value', snap=>{
   const u = snap.val() || {};
   const list = Object.keys(u).filter(n=>n!==username);
-  typingEl.textContent = list.length ? list.join(', ') + ' печатает...' : '';
+  typingEl.textContent = list.length ? list.join(', ')+' печатает...' : '';
 });
 
 // ===== CONNECTION + PING =====
@@ -112,18 +154,14 @@ function updatePing(){
   const start = performance.now();
   db.ref('ping').set(Date.now()).then(()=>{
     const ms = Math.round(performance.now() - start);
-    connectionEl.textContent = '● Подключено | ping: ' + ms + ' ms';
-    connectionEl.style.color = '#0f0';
+    connectionEl.textContent = '● Подключено | ping: '+ms+' ms';
+    connectionEl.style.color='#0f0';
   });
 }
 
 db.ref('.info/connected').on('value', snap=>{
-  if(snap.val()){
-    updatePing();
-  } else {
-    connectionEl.textContent = '● Соединение потеряно';
-    connectionEl.style.color = '#f00';
-  }
+  if(snap.val()) updatePing();
+  else{ connectionEl.textContent='● Соединение потеряно'; connectionEl.style.color='#f00'; }
 });
 
 setInterval(()=>navigator.onLine && updatePing(),3000);
