@@ -46,11 +46,39 @@ body {
     left: 0;
     padding: 5px 10px;
 }
+#roomBar {
+    position: fixed;
+    bottom: 80px;
+    left: 0;
+    width: 100%;
+    background: #111;
+    color: #fff;
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 10px;
+    font-size: 14px;
+}
+#roomUsers {
+    position: fixed;
+    bottom: 110px;
+    left: 0;
+    width: 100%;
+    background: #000;
+    color: #aaa;
+    display: none;
+    padding: 5px 10px;
+    font-size: 13px;
+}
 </style>
 </head>
 <body>
 
 <div id="terminal"></div>
+<div id="roomBar">
+  <span id="roomCount">👥 0</span>
+  <span id="toggleBar">⬆</span>
+</div>
+<div id="roomUsers"></div>
 <div id="typing"></div>
 <input id="input" autocomplete="off" autofocus placeholder="Введите сообщение и нажмите Enter">
 
@@ -77,6 +105,7 @@ const db = firebase.database();
 
 const messagesRef = db.ref('messages');
 const typingRef = db.ref('typing');
+const usersRef = db.ref('users');
 
 function renderMessages(data) {
     terminal.textContent = '';
@@ -110,6 +139,29 @@ input.addEventListener('input', () => {
 typingRef.on('value', snap => {
     const users = snap.val() || {};
     const others = Object.keys(users).filter(u => u !== username);
+    typingEl.textContent = others.length ? others.join(', ') + ' печатает...' : '';
+});
+
+// онлайн пользователи
+usersRef.child(username).set(true);
+usersRef.child(username).onDisconnect().remove();
+
+usersRef.on('value', snap => {
+    const users = snap.val() || {};
+    const names = Object.keys(users);
+    document.getElementById('roomCount').textContent = `👥 ${names.length}`;
+    document.getElementById('roomUsers').textContent = 'В комнате: ' + names.join(', ');
+});
+
+// мобильная панель
+const toggle = document.getElementById('toggleBar');
+const roomUsers = document.getElementById('roomUsers');
+let open = false;
+toggle.onclick = () => {
+    open = !open;
+    roomUsers.style.display = open ? 'block' : 'none';
+    toggle.textContent = open ? '⬇' : '⬆';
+};
     typingEl.textContent = others.length ? others.join(', ') + ' печатает...' : '';
 });
 
