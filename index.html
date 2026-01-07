@@ -22,8 +22,9 @@ body{margin:0;background:#000;color:#fff;font-family:monospace}
 <input id="input" placeholder="Enter message and press Enter">
 
 <script>
-var ADMIN_KEY = 'tenge';
+var ADMIN_KEY = 'CHANGE_ME_123';
 var isAdmin = localStorage.getItem('isAdmin') === 'true';
+var userColor = localStorage.getItem('userColor') || '#ffffff';
 
 var terminal = document.getElementById('terminal');
 var input = document.getElementById('input');
@@ -63,7 +64,8 @@ messagesRef.limitToLast(100).on('value', function(snap){
     if(userLabel.indexOf('[ADMIN]') === 0){
       userLabel = '<span style="color:red;font-weight:bold">[ADMIN]</span> ' + userLabel.replace('[ADMIN] ','');
     }
-    terminal.innerHTML += '[' + m.time + '] ' + userLabel + ': ' + m.text + '<br>';
+    var color = m.color || '#ffffff';
+    terminal.innerHTML += '[' + m.time + '] <span style="color:' + color + '">' + userLabel + '</span>: ' + m.text + '<br>';
   }
   terminal.scrollTop = terminal.scrollHeight;
 });
@@ -97,7 +99,7 @@ input.addEventListener('keydown', function(e){
     return;
   }
 
-  messagesRef.push({user:(isAdmin ? '[ADMIN] ' : '') + username,text:text,time:new Date().toLocaleTimeString()});
+  messagesRef.push({user:(isAdmin ? '[ADMIN] ' : '') + username,text:text,time:new Date().toLocaleTimeString(),color:userColor});().toLocaleTimeString()});
   input.value = '';
   typingRef.child(username).remove();
 });
