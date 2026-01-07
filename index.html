@@ -80,20 +80,30 @@
     function renderMessages(data) {
         terminal.textContent = '';
         Object.values(data || {}).forEach(m => {
-            terminal.textContent += `[${m.time}] ${m.user}: ${m.text}\n`;
+            terminal.textContent += `[${m.time}] ${m.user}: ${m.text}
+`;
         });
         terminal.scrollTop = terminal.scrollHeight;
     }
 
+    let isConnected = false;
+
     messagesRef.limitToLast(100).on('value', snap => {
+        isConnected = true;
         renderMessages(snap.val());
+    }, error => {
+        console.error('Firebase error:', error);
+    });
     });
 
     // 🔇 Тихое автообновление (fallback) каждые 5 секунд
+    // 🔇 Тихое автообновление ТОЛЬКО если нет соединения
     setInterval(() => {
-        messagesRef.limitToLast(100).once('value').then(snap => {
-            renderMessages(snap.val());
-        });
+        if (!isConnected) {
+            messagesRef.limitToLast(100).once('value').then(snap => {
+                renderMessages(snap.val());
+            }).catch(err => console.error(err));
+        }
     }, 5000);
         terminal.scrollTop = terminal.scrollHeight;
     });
