@@ -27,7 +27,7 @@ body {margin:0;background:#000;color:#fff;font-family:monospace;}
 
 <script>
 // ===== CONFIG =====
-const ADMIN_KEY = 'Tenge228'; // поменяй ключ
+const ADMIN_KEY = 'CHANGE_ME_123'; // поменяй ключ
 let isAdmin = localStorage.getItem('isAdmin') === 'true';
 
 // ===== UI =====
@@ -78,23 +78,33 @@ input.addEventListener('keydown', e => {
   var text = input.value.trim();
   if (!text) return;
 
-  // ADMIN LOGIN
-  if (text.startsWith('/key ')) {
-    if (text.split(' ')[1] === ADMIN_KEY) {
+    // ADMIN LOGIN
+  if (text.startsWith('/key')) {
+    const parts = text.split(' ');
+    const enteredKey = parts.slice(1).join(' ').trim();
+
+    if (!enteredKey) {
+      messagesRef.push({user:'system', text:'ℹ Использование: /key ВАШ_КЛЮЧ', time:new Date().toLocaleTimeString()});
+      input.value = '';
+      return;
+    }
+
+    if (enteredKey === ADMIN_KEY) {
       isAdmin = true;
       localStorage.setItem('isAdmin', 'true');
-      messagesRef.push({user:'system', text:'Вы вошли как ADMIN', time:new Date().toLocaleTimeString()});
+      messagesRef.push({user:'system', text:'✅ Вы вошли как ADMIN', time:new Date().toLocaleTimeString()});
     } else {
-      messagesRef.push({user:'system', text:'Неверный ключ', time:new Date().toLocaleTimeString()});
+      messagesRef.push({user:'system', text:'❌ Неверный ключ', time:new Date().toLocaleTimeString()});
     }
     input.value = '';
     return;
+  }
   }
 
   // CLEAR (ADMIN ONLY)
   if (text === '/clear') {
     if (!isAdmin) {
-      messagesRef.push({user:'system', text:'Только ADMIN имеет право', time:new Date().toLocaleTimeString()});
+      messagesRef.push({user:'system', text:'❌ Только ADMIN', time:new Date().toLocaleTimeString()});
       input.value = '';
       return;
     }
