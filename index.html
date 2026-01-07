@@ -11,63 +11,60 @@
 
 <style>
 body {
-    margin: 0;
-    background: black;
-    color: #ffffff;
-    font-family: monospace;
-    font-size: 16px;
-}
-#typing {
-    padding: 5px 10px;
-    color: #888;
-    font-size: 14px;
-    position: fixed;
-    bottom: 55px;
-    left: 0;
-    width: 100%;
-    background: black;
+  margin: 0;
+  background: black;
+  color: #fff;
+  font-family: monospace;
 }
 #terminal {
-    padding: 10px;
-    height: calc(100vh - 90px);
-    overflow-y: auto;
-    white-space: pre-wrap;
+  padding: 10px;
+  height: calc(100vh - 140px);
+  overflow-y: auto;
+  white-space: pre-wrap;
 }
-#input {
-    outline: none;
-    border: none;
-    background: black;
-    color: #ffffff;
-    font-family: monospace;
-    font-size: 16px;
-    width: 100%;
-    position: fixed;
-    bottom: 20px;
-    left: 0;
-    padding: 5px 10px;
+#typing {
+  position: fixed;
+  bottom: 80px;
+  left: 0;
+  width: 100%;
+  padding: 5px 10px;
+  font-size: 14px;
+  color: #888;
+  background: black;
 }
 #roomBar {
-    position: fixed;
-    bottom: 80px;
-    left: 0;
-    width: 100%;
-    background: #111;
-    color: #fff;
-    display: flex;
-    justify-content: space-between;
-    padding: 5px 10px;
-    font-size: 14px;
+  position: fixed;
+  bottom: 110px;
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 10px;
+  background: #111;
 }
 #roomUsers {
-    position: fixed;
-    bottom: 110px;
-    left: 0;
-    width: 100%;
-    background: #000;
-    color: #aaa;
-    display: none;
-    padding: 5px 10px;
-    font-size: 13px;
+  display: none;
+  position: fixed;
+  bottom: 140px;
+  left: 0;
+  width: 100%;
+  padding: 5px 10px;
+  background: black;
+  color: #aaa;
+  font-size: 13px;
+}
+#input {
+  position: fixed;
+  bottom: 20px;
+  left: 0;
+  width: 100%;
+  border: none;
+  outline: none;
+  background: black;
+  color: #fff;
+  font-family: monospace;
+  font-size: 16px;
+  padding: 5px 10px;
 }
 </style>
 </head>
@@ -80,29 +77,17 @@ body {
 </div>
 <div id="roomUsers"></div>
 <div id="typing"></div>
-<input id="input" autocomplete="off" autofocus placeholder="Введите сообщение и нажмите Enter">
+<input id="input" placeholder="Введите сообщение и Enter">
 
 <script>
 const terminal = document.getElementById('terminal');
 const input = document.getElementById('input');
 const typingEl = document.getElementById('typing');
+const roomCountEl = document.getElementById('roomCount');
+const roomUsersEl = document.getElementById('roomUsers');
+const toggleBar = document.getElementById('toggleBar');
 
 const username = 'user_' + Math.floor(Math.random() * 1000);
-let isAdmin = false;
-const ADMIN_IP = '45.134.218.211';
-
-// определяем IP и права админа
-fetch('https://api.ipify.org?format=json')
-  .then(res => res.json())
-  .then(data => {
-      if (data.ip === ADMIN_IP) {
-          isAdmin = true;
-          terminal.textContent += '
-[ADMIN MODE ENABLED]
-';
-      }
-  })
-  .catch(() => {});
 
 const firebaseConfig = {
   apiKey: "AIzaSyBzPbPhYS7dDfhDwaqYLAHpIV6QBN53EV0",
@@ -111,8 +96,7 @@ const firebaseConfig = {
   projectId: "project-7979939474542798395",
   storageBucket: "project-7979939474542798395.firebasestorage.app",
   messagingSenderId: "64773662070",
-  appId: "1:64773662070:web:59a5ade363119a1b61c657",
-  measurementId: "G-FP4X149HMS"
+  appId: "1:64773662070:web:59a5ade363119a1b61c657"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -120,99 +104,66 @@ const db = firebase.database();
 
 const messagesRef = db.ref('messages');
 const typingRef = db.ref('typing');
-const usersRef = db.ref('presence');
+const presenceRef = db.ref('presence');
 
 function renderMessages(data) {
-    terminal.textContent = '';
-    Object.values(data || {}).forEach(m => {
-        terminal.textContent += `[${m.time}] ${m.user}: ${m.text}\n`;
-    });
-    terminal.scrollTop = terminal.scrollHeight;
+  terminal.textContent = '';
+  Object.values(data || {}).forEach(m => {
+    terminal.textContent += `[${m.time}] ${m.user}: ${m.text}\n`;
+  });
+  terminal.scrollTop = terminal.scrollHeight;
 }
 
 messagesRef.limitToLast(100).on('value', snap => {
-    renderMessages(snap.val());
+  renderMessages(snap.val());
 });
 
 input.addEventListener('keydown', e => {
-    if (e.key !== 'Enter') return;
+  if (e.key !== 'Enter') return;
+  const text = input.value.trim();
+  if (!text) return;
 
-    const text = input.value.trim();
-    if (!text) return;
+  messagesRef.push({
+    user: username,
+    text,
+    time: new Date().toLocaleTimeString()
+  });
 
-    // команда очистки (только для админа)
-    if (text === '/clear') {
-        if (!isAdmin) {
-            terminal.textContent += '[SYSTEM] Недостаточно прав для /clear
-';
-            input.value = '';
-            return;
-        }
-        messagesRef.remove();
-        terminal.textContent = '';
-        input.value = '';
-        return;
-    }
-    }
-
-    messagesRef.push({
-        user: username,
-        text: text,
-        time: new Date().toLocaleTimeString()
-    });
-
-    input.value = '';
-    typingRef.child(username).remove();
-});
-        input.value = '';
-        typingRef.child(username).remove();
-    }
+  input.value = '';
+  typingRef.child(username).remove();
 });
 
 input.addEventListener('input', () => {
-    typingRef.child(username).set(true);
-    setTimeout(() => typingRef.child(username).remove(), 1500);
+  typingRef.child(username).set(true);
+  setTimeout(() => typingRef.child(username).remove(), 1500);
 });
 
 typingRef.on('value', snap => {
-    const users = snap.val() || {};
-    const others = Object.keys(users).filter(u => u !== username);
-    typingEl.textContent = others.length ? others.join(', ') + ' печатает...' : '';
+  const users = snap.val() || {};
+  const list = Object.keys(users).filter(u => u !== username);
+  typingEl.textContent = list.length ? list.join(', ') + ' печатает...' : '';
 });
 
-// онлайн пользователи (presence)
-const myPresenceRef = usersRef.child(username);
-
-// ставим онлайн ПОСЛЕ подключения к Firebase
 firebase.database().ref('.info/connected').on('value', snap => {
-    if (snap.val() === true) {
-        myPresenceRef.set(true);
-        myPresenceRef.onDisconnect().remove();
-    }
+  if (snap.val()) {
+    presenceRef.child(username).set(true);
+    presenceRef.child(username).onDisconnect().remove();
+  }
 });
 
-usersRef.on('value', snap => {
-    const users = snap.val() || {};
-    const names = Object.keys(users);
-    document.getElementById('roomCount').textContent = `👥 ${names.length}`;
-    document.getElementById('roomUsers').textContent = 'В комнате: ' + (names.length ? names.join(', ') : 'никого');
+presenceRef.on('value', snap => {
+  const users = snap.val() || {};
+  const names = Object.keys(users);
+  roomCountEl.textContent = `👥 ${names.length}`;
+  roomUsersEl.textContent = names.length ? 'В комнате: ' + names.join(', ') : 'В комнате никого нет';
 });
 
-// мобильная панель
-const toggle = document.getElementById('toggleBar');
-const roomUsers = document.getElementById('roomUsers');
 let open = false;
-toggle.onclick = () => {
-    open = !open;
-    roomUsers.style.display = open ? 'block' : 'none';
-    toggle.textContent = open ? '⬇' : '⬆';
-}; = () => {
-    open = !open;
-    roomUsers.style.display = open ? 'block' : 'none';
-    toggle.textContent = open ? '⬇' : '⬆';
+toggleBar.onclick = () => {
+  open = !open;
+  roomUsersEl.style.display = open ? 'block' : 'none';
+  toggleBar.textContent = open ? '⬇' : '⬆';
 };
-    typingEl.textContent = others.length ? others.join(', ') + ' печатает...' : '';
-});
 
 terminal.textContent = `CLI Chat запущен\nВаш ник: ${username}\n-------------------------\n`;
 </script>
