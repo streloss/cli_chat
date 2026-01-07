@@ -50,6 +50,9 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
+    
+
+
     // 🔧 ВСТАВЬ СЮДА СВОИ ДАННЫЕ ИЗ FIREBASE
     const firebaseConfig = {
   apiKey: "AIzaSyBzPbPhYS7dDfhDwaqYLAHpIV6QBN53EV0",
@@ -74,12 +77,24 @@
     const messagesRef = db.ref('messages');
     const typingRef = db.ref('typing');
 
-    messagesRef.limitToLast(100).on('value', snap => {
+    function renderMessages(data) {
         terminal.textContent = '';
-        const data = snap.val() || {};
-        Object.values(data).forEach(m => {
+        Object.values(data || {}).forEach(m => {
             terminal.textContent += `[${m.time}] ${m.user}: ${m.text}\n`;
         });
+        terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    messagesRef.limitToLast(100).on('value', snap => {
+        renderMessages(snap.val());
+    });
+
+    // 🔇 Тихое автообновление (fallback) каждые 5 секунд
+    setInterval(() => {
+        messagesRef.limitToLast(100).once('value').then(snap => {
+            renderMessages(snap.val());
+        });
+    }, 5000);
         terminal.scrollTop = terminal.scrollHeight;
     });
         terminal.textContent += `[${m.time}] ${m.user}: ${m.text}\n`;
