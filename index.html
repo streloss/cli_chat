@@ -50,23 +50,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
-    
-
-
-    // 🔧 ВСТАВЬ СЮДА СВОИ ДАННЫЕ ИЗ FIREBASE
-    const firebaseConfig = {
-  apiKey: "AIzaSyBzPbPhYS7dDfhDwaqYLAHpIV6QBN53EV0",
-  authDomain: "project-7979939474542798395.firebaseapp.com",
-  databaseURL: "https://project-7979939474542798395-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "project-7979939474542798395",
-  storageBucket: "project-7979939474542798395.firebasestorage.app",
-  messagingSenderId: "64773662070",
-  appId: "1:64773662070:web:59a5ade363119a1b61c657",
-  measurementId: "G-FP4X149HMS"
-};
-
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+    // Firebase SDK должен быть подключён ВЫШЕ этого скрипта
 
     const terminal = document.getElementById('terminal');
     const input = document.getElementById('input');
@@ -74,78 +58,62 @@
 
     const username = 'user_' + Math.floor(Math.random() * 1000);
 
+    const firebaseConfig = {
+        apiKey: "AIzaSyBzPbPhYS7dDfhDwaqYLAHpIV6QBN53EV0",
+        authDomain: "project-7979939474542798395.firebaseapp.com",
+        databaseURL: "https://project-7979939474542798395-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "project-7979939474542798395",
+        storageBucket: "project-7979939474542798395.firebasestorage.app",
+        messagingSenderId: "64773662070",
+        appId: "1:64773662070:web:59a5ade363119a1b61c657",
+        measurementId: "G-FP4X149HMS"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
     const messagesRef = db.ref('messages');
     const typingRef = db.ref('typing');
 
     function renderMessages(data) {
         terminal.textContent = '';
         Object.values(data || {}).forEach(m => {
-            terminal.textContent += `[${m.time}] ${m.user}: ${m.text}
-`;
+            terminal.textContent += `[${m.time}] ${m.user}: ${m.text}\n`;
         });
         terminal.scrollTop = terminal.scrollHeight;
     }
 
-    let isConnected = false;
-
+    // realtime обновление сообщений
     messagesRef.limitToLast(100).on('value', snap => {
-        isConnected = true;
         renderMessages(snap.val());
-    }, error => {
-        console.error('Firebase error:', error);
-    });
     });
 
-    // 🔇 Тихое автообновление (fallback) каждые 5 секунд
-    // 🔇 Тихое автообновление ТОЛЬКО если нет соединения
-    setInterval(() => {
-        if (!isConnected) {
-            messagesRef.limitToLast(100).once('value').then(snap => {
-                renderMessages(snap.val());
-            }).catch(err => console.error(err));
-        }
-    }, 5000);
-        terminal.scrollTop = terminal.scrollHeight;
-    });
-        terminal.textContent += `[${m.time}] ${m.user}: ${m.text}\n`;
-        terminal.scrollTop = terminal.scrollHeight;
-    });
-
-    typingRef.on('value', snap => {
-        const users = snap.val() || {};
-        const names = Object.keys(users);
-        typingEl.textContent = names.length
-            ? names.join(', ') + ' печатает...'
-            : 'Никто не печатает';
-    });
-
-    function sendMessage(text) {
-        messagesRef.push({
-            user: username,
-            text: text,
-            time: new Date().toLocaleTimeString()
-        });
-        typingRef.child(username).remove();
-    }
-
+    // отправка сообщений
     input.addEventListener('keydown', e => {
-        if (e.key === 'Enter' && input.value.trim()) {
-            sendMessage(input.value);
+        if (e.key === 'Enter' && input.value.trim() !== '') {
+            messagesRef.push({
+                user: username,
+                text: input.value,
+                time: new Date().toLocaleTimeString()
+            });
             input.value = '';
-        }
-    });
-
-    input.addEventListener('input', () => {
-        if (input.value.trim()) {
-            typingRef.child(username).set(true);
-        } else {
             typingRef.child(username).remove();
         }
     });
 
-    window.addEventListener('beforeunload', () => {
-        typingRef.child(username).remove();
+    // статус печати
+    input.addEventListener('input', () => {
+        typingRef.child(username).set(true);
+        setTimeout(() => typingRef.child(username).remove(), 1500);
     });
+
+    typingRef.on('value', snap => {
+        const users = snap.val() || {};
+        const others = Object.keys(users).filter(u => u !== username);
+        typingEl.textContent = others.length ? others.join(', ') + ' печатает...' : '';
+    });
+
+    terminal.textContent = `CLI Chat запущен\nВаш ник: ${username}\n-------------------------\n`;
 </script>
 </body>
 </html>
