@@ -22,14 +22,21 @@ body{margin:0;background:#000;color:#fff;font-family:monospace}
 <input id="input" placeholder="Enter message and press Enter">
 
 <script>
-var ADMIN_KEY = 'tenge';
+var ADMIN_KEY = 'CHANGE_ME_123';
 var isAdmin = localStorage.getItem('isAdmin') === 'true';
 
 var terminal = document.getElementById('terminal');
 var input = document.getElementById('input');
 var typingEl = document.getElementById('typing');
 
-var username = 'user_' + Math.floor(Math.random() * 1000);
+var username = localStorage.getItem('nickname');
+if(!username){
+  username = prompt('Введите ваш ник:');
+  if(!username){
+    username = 'user_' + Math.floor(Math.random() * 1000);
+  }
+  localStorage.setItem('nickname', username);
+}
 
 var firebaseConfig = {
   apiKey: "AIzaSyBzPbPhYS7dDfhDwaqYLAHpIV6QBN53EV0",
