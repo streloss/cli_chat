@@ -36,15 +36,20 @@ let userColor = localStorage.getItem('userColor') || '#ffffff';
 const CHAT_SECRET = 'CLI_CHAT_SECRET_2026'; // общий ключ
 
 function encrypt(text){
-  return btoa(unescape(encodeURIComponent(text + '|' + CHAT_SECRET)));
+  return btoa(text + '|' + CHAT_SECRET);
 }
 
 function decrypt(text){
   try{
-    const decoded = decodeURIComponent(escape(atob(text)));
+    const decoded = atob(text);
     if(decoded.endsWith('|' + CHAT_SECRET)){
-      return decoded.replace('|' + CHAT_SECRET,'');
+      return decoded.slice(0, -('|'+CHAT_SECRET).length);
     }
+    return '[НЕ УДАЛОСЬ РАСШИФРОВАТЬ]';
+  }catch(e){
+    return '[ОШИБКА ШИФРОВАНИЯ]';
+  }
+}
     return '[НЕ УДАЛОСЬ РАСШИФРОВАТЬ]';
   }catch(e){
     return '[ОШИБКА ШИФРОВАНИЯ]';
@@ -176,18 +181,36 @@ typingRef.on('value', function(snap){
   typingEl.textContent = list.length ? list.join(', ') + ' печатает...' : '';
 });
 
-// ===== CONNECTION =====
+// ===== CONNECTION + PING =====
+let lastPing = 0;
+
+function updatePing(){
+  const start = performance.now();
+  db.ref('ping').set(Date.now()).then(function(){
+    const ms = Math.round(performance.now() - start);
+    connectionEl.textContent = '● Подключено | ping: ' + ms + ' ms';
+    connectionEl.style.color = '#0f0';
+  });
+}).catch(function(){
+    connectionEl.textContent = '● Подключено | ping: ?';
+    connectionEl.style.color = '#0f0';
+  });
+}
+
 db.ref('.info/connected').on('value', function(snap){
   if(snap.val()){
-    connectionEl.textContent = '● Подключено';
-    connectionEl.style.color = '#0f0';
+    updatePing();
   } else {
     connectionEl.textContent = '● Соединение потеряно';
     connectionEl.style.color = '#f00';
   }
 });
 
+setInterval(function(){
+  if(navigator.onLine){
+    updatePing();
+  }
+}, 5000);
+
 terminal.innerHTML = 'CLI Chat started<br>Ваш ник: ' + username + '<br>-------------------------<br>';
-</script>
-</body>
-</html>
+
