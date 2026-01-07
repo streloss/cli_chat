@@ -74,8 +74,14 @@
     const messagesRef = db.ref('messages');
     const typingRef = db.ref('typing');
 
-    messagesRef.limitToLast(100).on('child_added', snap => {
-        const m = snap.val();
+    messagesRef.limitToLast(100).on('value', snap => {
+        terminal.textContent = '';
+        const data = snap.val() || {};
+        Object.values(data).forEach(m => {
+            terminal.textContent += `[${m.time}] ${m.user}: ${m.text}\n`;
+        });
+        terminal.scrollTop = terminal.scrollHeight;
+    });
         terminal.textContent += `[${m.time}] ${m.user}: ${m.text}\n`;
         terminal.scrollTop = terminal.scrollHeight;
     });
