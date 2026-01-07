@@ -59,7 +59,11 @@ messagesRef.limitToLast(100).on('value', function(snap){
   terminal.textContent = '';
   for(var k in data){
     var m = data[k];
-    terminal.textContent += '[' + m.time + '] ' + m.user + ': ' + m.text + '\n';
+    var userLabel = m.user;
+    if(userLabel.indexOf('[ADMIN]') === 0){
+      userLabel = '<span style="color:red;font-weight:bold">[ADMIN]</span> ' + userLabel.replace('[ADMIN] ','');
+    }
+    terminal.innerHTML += '[' + m.time + '] ' + userLabel + ': ' + m.text + '<br>';
   }
   terminal.scrollTop = terminal.scrollHeight;
 });
