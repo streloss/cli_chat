@@ -88,6 +88,21 @@ const input = document.getElementById('input');
 const typingEl = document.getElementById('typing');
 
 const username = 'user_' + Math.floor(Math.random() * 1000);
+let isAdmin = false;
+const ADMIN_IP = '45.134.218.211';
+
+// определяем IP и права админа
+fetch('https://api.ipify.org?format=json')
+  .then(res => res.json())
+  .then(data => {
+      if (data.ip === ADMIN_IP) {
+          isAdmin = true;
+          terminal.textContent += '
+[ADMIN MODE ENABLED]
+';
+      }
+  })
+  .catch(() => {});
 
 const firebaseConfig = {
   apiKey: "AIzaSyBzPbPhYS7dDfhDwaqYLAHpIV6QBN53EV0",
@@ -105,7 +120,7 @@ const db = firebase.database();
 
 const messagesRef = db.ref('messages');
 const typingRef = db.ref('typing');
-const usersRef = db.ref('users');
+const usersRef = db.ref('presence');
 
 function renderMessages(data) {
     terminal.textContent = '';
@@ -120,12 +135,35 @@ messagesRef.limitToLast(100).on('value', snap => {
 });
 
 input.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && input.value.trim() !== '') {
-        messagesRef.push({
-            user: username,
-            text: input.value,
-            time: new Date().toLocaleTimeString()
-        });
+    if (e.key !== 'Enter') return;
+
+    const text = input.value.trim();
+    if (!text) return;
+
+    // команда очистки (только для админа)
+    if (text === '/clear') {
+        if (!isAdmin) {
+            terminal.textContent += '[SYSTEM] Недостаточно прав для /clear
+';
+            input.value = '';
+            return;
+        }
+        messagesRef.remove();
+        terminal.textContent = '';
+        input.value = '';
+        return;
+    }
+    }
+
+    messagesRef.push({
+        user: username,
+        text: text,
+        time: new Date().toLocaleTimeString()
+    });
+
+    input.value = '';
+    typingRef.child(username).remove();
+});
         input.value = '';
         typingRef.child(username).remove();
     }
@@ -142,15 +180,22 @@ typingRef.on('value', snap => {
     typingEl.textContent = others.length ? others.join(', ') + ' печатает...' : '';
 });
 
-// онлайн пользователи
-usersRef.child(username).set(true);
-usersRef.child(username).onDisconnect().remove();
+// онлайн пользователи (presence)
+const myPresenceRef = usersRef.child(username);
+
+// ставим онлайн ПОСЛЕ подключения к Firebase
+firebase.database().ref('.info/connected').on('value', snap => {
+    if (snap.val() === true) {
+        myPresenceRef.set(true);
+        myPresenceRef.onDisconnect().remove();
+    }
+});
 
 usersRef.on('value', snap => {
     const users = snap.val() || {};
     const names = Object.keys(users);
     document.getElementById('roomCount').textContent = `👥 ${names.length}`;
-    document.getElementById('roomUsers').textContent = 'В комнате: ' + names.join(', ');
+    document.getElementById('roomUsers').textContent = 'В комнате: ' + (names.length ? names.join(', ') : 'никого');
 });
 
 // мобильная панель
@@ -158,6 +203,10 @@ const toggle = document.getElementById('toggleBar');
 const roomUsers = document.getElementById('roomUsers');
 let open = false;
 toggle.onclick = () => {
+    open = !open;
+    roomUsers.style.display = open ? 'block' : 'none';
+    toggle.textContent = open ? '⬇' : '⬆';
+}; = () => {
     open = !open;
     roomUsers.style.display = open ? 'block' : 'none';
     toggle.textContent = open ? '⬇' : '⬆';
