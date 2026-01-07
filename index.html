@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>CLI Chat</title>
+<title>CLI Chat (Firebase)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
     body {
@@ -20,7 +20,7 @@
     }
     #terminal {
         padding: 10px;
-        height: calc(100vh - 120px); /* место под статус и ввод */
+        height: calc(100vh - 120px);
         overflow-y: auto;
         white-space: pre-wrap;
     }
@@ -41,86 +41,80 @@
 </head>
 <body>
 
-<div id="typing">Никто не печатает</div>
+<div id="typing">Подключение…</div>
 <div id="terminal"></div>
 <input id="input" autocomplete="off" autofocus placeholder="Введите сообщение и нажмите Enter">
 
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
 <script>
+    // 🔧 ВСТАВЬ СЮДА СВОИ ДАННЫЕ ИЗ FIREBASE
+    const firebaseConfig = {
+  apiKey: "AIzaSyBzPbPhYS7dDfhDwaqYLAHpIV6QBN53EV0",
+  authDomain: "project-7979939474542798395.firebaseapp.com",
+  databaseURL: "https://project-7979939474542798395-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "project-7979939474542798395",
+  storageBucket: "project-7979939474542798395.firebasestorage.app",
+  messagingSenderId: "64773662070",
+  appId: "1:64773662070:web:59a5ade363119a1b61c657",
+  measurementId: "G-FP4X149HMS"
+};
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
     const terminal = document.getElementById('terminal');
     const input = document.getElementById('input');
     const typingEl = document.getElementById('typing');
 
     const username = 'user_' + Math.floor(Math.random() * 1000);
-    const STORAGE_KEY = 'cli_chat_messages';
-    const TYPING_KEY = 'cli_chat_typing_users';
 
-    function loadMessages() {
-        const messages = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-        terminal.textContent = '';
-        messages.forEach(m => {
-            terminal.textContent += `[${m.time}] ${m.user}: ${m.text}\n`;
-        });
+    const messagesRef = db.ref('messages');
+    const typingRef = db.ref('typing');
+
+    messagesRef.limitToLast(100).on('child_added', snap => {
+        const m = snap.val();
+        terminal.textContent += `[${m.time}] ${m.user}: ${m.text}\n`;
         terminal.scrollTop = terminal.scrollHeight;
-    }
+    });
 
-    function saveMessage(text) {
-        const messages = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-        messages.push({
+    typingRef.on('value', snap => {
+        const users = snap.val() || {};
+        const names = Object.keys(users);
+        typingEl.textContent = names.length
+            ? names.join(', ') + ' печатает...'
+            : 'Никто не печатает';
+    });
+
+    function sendMessage(text) {
+        messagesRef.push({
             user: username,
             text: text,
             time: new Date().toLocaleTimeString()
         });
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
-        removeTyping();
-    }
-
-    function setTyping() {
-        const users = JSON.parse(localStorage.getItem(TYPING_KEY) || '[]');
-        if (!users.includes(username)) {
-            users.push(username);
-            localStorage.setItem(TYPING_KEY, JSON.stringify(users));
-        }
-    }
-
-    function removeTyping() {
-        const users = JSON.parse(localStorage.getItem(TYPING_KEY) || '[]');
-        const filtered = users.filter(u => u !== username);
-        localStorage.setItem(TYPING_KEY, JSON.stringify(filtered));
-    }
-
-    function updateTypingStatus() {
-        const users = JSON.parse(localStorage.getItem(TYPING_KEY) || '[]');
-        if (users.length === 0) {
-            typingEl.textContent = 'Никто не печатает';
-        } else {
-            typingEl.textContent = users.join(', ') + ' печатает...';
-        }
+        typingRef.child(username).remove();
     }
 
     input.addEventListener('keydown', e => {
-        if (e.key === 'Enter' && input.value.trim() !== '') {
-            saveMessage(input.value);
+        if (e.key === 'Enter' && input.value.trim()) {
+            sendMessage(input.value);
             input.value = '';
-            loadMessages();
         }
     });
 
     input.addEventListener('input', () => {
-        if (input.value.trim() !== '') {
-            setTyping();
+        if (input.value.trim()) {
+            typingRef.child(username).set(true);
         } else {
-            removeTyping();
+            typingRef.child(username).remove();
         }
     });
 
-    window.addEventListener('storage', () => {
-        loadMessages();
-        updateTypingStatus();
+    window.addEventListener('beforeunload', () => {
+        typingRef.child(username).remove();
     });
-
-    terminal.textContent = `CLI Chat запущен\nВаш ник: ${username}\n-------------------------\n`;
-    loadMessages();
-    updateTypingStatus();
 </script>
 </body>
 </html>
