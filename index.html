@@ -11,8 +11,6 @@
 <style>
 body{margin:0;background:#000;color:#fff;font-family:monospace}
 #terminal{padding:10px;height:calc(100vh - 150px);overflow-y:auto;white-space:pre-wrap}
-#roomBar{position:fixed;bottom:110px;left:0;width:100%;background:#111;padding:5px 10px;display:flex;justify-content:space-between}
-#roomUsers{display:none;position:fixed;bottom:140px;left:0;width:100%;background:#000;color:#aaa;padding:5px 10px;font-size:13px}
 #typing{position:fixed;bottom:80px;left:0;width:100%;padding:5px 10px;color:#888;font-size:14px}
 #input{position:fixed;bottom:20px;left:0;width:100%;background:#000;color:#fff;border:none;outline:none;font-family:monospace;font-size:16px;padding:5px 10px}
 </style>
@@ -20,27 +18,19 @@ body{margin:0;background:#000;color:#fff;font-family:monospace}
 <body>
 
 <div id="terminal"></div>
-<div id="roomBar"><span id="roomCount">Users: 0</span><span id="toggleBar">^</span></div>
-<div id="roomUsers"></div>
 <div id="typing"></div>
 <input id="input" placeholder="Enter message and press Enter">
 
 <script>
-// ===== CONFIG =====
 var ADMIN_KEY = 'CHANGE_ME_123';
 var isAdmin = localStorage.getItem('isAdmin') === 'true';
 
-// ===== UI =====
 var terminal = document.getElementById('terminal');
 var input = document.getElementById('input');
 var typingEl = document.getElementById('typing');
-var roomCountEl = document.getElementById('roomCount');
-var roomUsersEl = document.getElementById('roomUsers');
-var toggleBar = document.getElementById('toggleBar');
 
 var username = 'user_' + Math.floor(Math.random() * 1000);
 
-// ===== FIREBASE =====
 var firebaseConfig = {
   apiKey: "AIzaSyBzPbPhYS7dDfhDwaqYLAHpIV6QBN53EV0",
   authDomain: "project-7979939474542798395.firebaseapp.com",
@@ -56,54 +46,38 @@ var db = firebase.database();
 
 var messagesRef = db.ref('messages');
 var typingRef = db.ref('typing');
-var presenceRef = db.ref('presence');
 
-// ===== MESSAGES =====
-function renderMessages(data){
+messagesRef.limitToLast(100).on('value', function(snap){
+  var data = snap.val() || {};
   terminal.textContent = '';
   for(var k in data){
     var m = data[k];
     terminal.textContent += '[' + m.time + '] ' + m.user + ': ' + m.text + '\n';
   }
   terminal.scrollTop = terminal.scrollHeight;
-}
-
-messagesRef.limitToLast(100).on('value', function(snap){
-  renderMessages(snap.val() || {});
 });
 
-// ===== INPUT =====
 input.addEventListener('keydown', function(e){
   if(e.key !== 'Enter') return;
-
   var text = input.value.trim();
   if(!text) return;
 
-  // ADMIN LOGIN
   if(text.indexOf('/key') === 0){
     var enteredKey = text.substring(4).trim();
-
-    if(!enteredKey){
-      messagesRef.push({user:'system',text:'ℹ Использование: /key ВАШ_КЛЮЧ',time:new Date().toLocaleTimeString()});
-      input.value = '';
-      return;
-    }
-
     if(enteredKey === ADMIN_KEY){
       isAdmin = true;
       localStorage.setItem('isAdmin','true');
-      messagesRef.push({user:'system',text:'✅ Вы вошли как ADMIN',time:new Date().toLocaleTimeString()});
+      messagesRef.push({user:'system',text:'ADMIN MODE ENABLED',time:new Date().toLocaleTimeString()});
     } else {
-      messagesRef.push({user:'system',text:'❌ Неверный ключ',time:new Date().toLocaleTimeString()});
+      messagesRef.push({user:'system',text:'WRONG KEY',time:new Date().toLocaleTimeString()});
     }
     input.value = '';
     return;
   }
 
-  // CLEAR (ADMIN ONLY)
   if(text === '/clear'){
     if(!isAdmin){
-      messagesRef.push({user:'system',text:'❌ Только ADMIN',time:new Date().toLocaleTimeString()});
+      messagesRef.push({user:'system',text:'NO PERMISSION',time:new Date().toLocaleTimeString()});
       input.value = '';
       return;
     }
@@ -122,38 +96,14 @@ input.addEventListener('input', function(){
   setTimeout(function(){typingRef.child(username).remove();},1500);
 });
 
-// ===== TYPING =====
 typingRef.on('value', function(snap){
   var users = snap.val() || {};
   var list = [];
   for(var u in users){if(u !== username) list.push(u);}
-  typingEl.textContent = list.length ? list.join(', ') + ' печатает...' : '';
+  typingEl.textContent = list.length ? list.join(', ') + ' typing...' : '';
 });
 
-// ===== PRESENCE =====
-firebase.database().ref('.info/connected').on('value', function(snap){
-  if(snap.val()){
-    presenceRef.child(username).set(true);
-    presenceRef.child(username).onDisconnect().remove();
-  }
-});
-
-presenceRef.on('value', function(snap){
-  var users = snap.val() || {};
-  var names = Object.keys(users);
-  roomCountEl.textContent = 'Users: ' + names.length;
-  roomUsersEl.textContent = names.join(', ');
-});
-
-// ===== MOBILE BAR =====
-var open = false;
-toggleBar.onclick = function(){
-  open = !open;
-  roomUsersEl.style.display = open ? 'block' : 'none';
-  toggleBar.textContent = open ? 'v' : '^';
-};
-
-terminal.textContent = 'CLI Chat started\nYour nick: ' + username + (isAdmin ? ' [ADMIN]' : '') + '\n-------------------------\n';
+terminal.textContent = 'CLI Chat started\nYour nick: ' + username + '\n-------------------------\n';
 </script>
 </body>
 </html>
