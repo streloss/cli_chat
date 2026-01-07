@@ -10,22 +10,23 @@
 
 <style>
 body{margin:0;background:#000;color:#fff;font-family:monospace}
-#typing{position:fixed;top:0;left:0;width:100%;padding:6px 12px;color:#0f0;border-bottom:1px solid #222}
-#terminal{padding:50px 10px 80px;height:100vh;overflow-y:auto;white-space:pre-wrap}
-#input{position:fixed;bottom:28px;left:0;width:100%;background:#000;color:#fff;border:none;outline:none;font-size:16px;padding:6px}
-#connection{position:fixed;bottom:0;left:0;width:100%;padding:6px 12px;border-top:1px solid #222;color:#888}
+#typing{position:fixed;top:0;left:0;width:100%;padding:6px 12px;color:#0f0;background:#000;border-bottom:1px solid #222;z-index:10}
+#online{position:fixed;top:24px;left:0;width:100%;padding:4px 12px;font-size:12px;color:#0af;background:#000;border-bottom:1px solid #222}
+#terminal{padding:70px 10px 70px;height:100vh;overflow-y:auto;white-space:pre-wrap}
+#input{position:fixed;bottom:28px;left:0;width:100%;background:#000;color:#fff;border:none;outline:none;font-family:monospace;font-size:16px;padding:6px 10px}
+#connection{position:fixed;bottom:0;left:0;width:100%;padding:6px 12px;font-size:13px;background:#000;border-top:1px solid #222;color:#888}
 </style>
 </head>
 <body>
 
 <div id="typing"></div>
+<div id="online">В сети: 0</div>
 <div id="terminal"></div>
 <input id="input" placeholder="Введите сообщение и Enter">
 <div id="connection">● Инициализация...</div>
 
 <script>
-window.addEventListener('load', () => {
-
+// ===== CONFIG =====
 const firebaseConfig = {
   apiKey: "AIzaSyBzPbPhYS7dDfhDwaqYLAHpIV6QBN53EV0",
   authDomain: "project-7979939474542798395.firebaseapp.com",
@@ -39,33 +40,48 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
+// ===== USER =====
+let username = localStorage.getItem('nickname');
+if(!username){
+  username = prompt('Введите ник') || 'user_'+Math.floor(Math.random()*1000);
+  localStorage.setItem('nickname', username);
+}
+
+// ===== REFS =====
+const messagesRef = db.ref('messages');
+const typingRef = db.ref('typing');
+const presenceRef = db.ref('presence/'+username);
+
+// ===== UI =====
 const terminal = document.getElementById('terminal');
 const input = document.getElementById('input');
 const typingEl = document.getElementById('typing');
+const onlineEl = document.getElementById('online');
 const connectionEl = document.getElementById('connection');
 
-let username = localStorage.getItem('nick');
-if(!username){
-  username = prompt('Введите ник') || 'user' + Math.floor(Math.random()*1000);
-  localStorage.setItem('nick', username);
-}
+terminal.textContent = 'CLI Chat started\nВаш ник: '+username+'\n-------------------------\n';
 
-terminal.textContent = 'CLI Chat started\nВаш ник: ' + username + '\n-------------------------\n';
+// ===== PRESENCE (ONLINE COUNTER) =====
+presenceRef.set(true);
+presenceRef.onDisconnect().remove();
 
-const messagesRef = db.ref('messages');
-const typingRef = db.ref('typing');
+db.ref('presence').on('value', snap=>{
+  const count = snap.numChildren();
+  onlineEl.textContent = 'В сети: ' + count;
+});
 
-messagesRef.limitToLast(100).on('value', snap => {
+// ===== MESSAGES =====
+messagesRef.limitToLast(100).on('value', snap=>{
   terminal.innerHTML = '';
   const data = snap.val() || {};
-  for(const k in data){
-    const m = data[k];
+  Object.values(data).forEach(m=>{
     terminal.innerHTML += `[${m.time}] ${m.user}: ${m.text}\n`;
-  }
+  });
   terminal.scrollTop = terminal.scrollHeight;
 });
 
-input.addEventListener('keydown', e => {
+// ===== INPUT =====
+input.addEventListener('keydown', e=>{
   if(e.key !== 'Enter') return;
   const text = input.value.trim();
   if(!text) return;
@@ -80,38 +96,37 @@ input.addEventListener('keydown', e => {
   typingRef.child(username).remove();
 });
 
-input.addEventListener('input', () => {
+input.addEventListener('input', ()=>{
   typingRef.child(username).set(true);
   setTimeout(()=>typingRef.child(username).remove(),1500);
 });
 
-typingRef.on('value', snap => {
+typingRef.on('value', snap=>{
   const u = snap.val() || {};
   const list = Object.keys(u).filter(n=>n!==username);
   typingEl.textContent = list.length ? list.join(', ') + ' печатает...' : '';
 });
 
+// ===== CONNECTION + PING =====
 function updatePing(){
   const start = performance.now();
   db.ref('ping').set(Date.now()).then(()=>{
     const ms = Math.round(performance.now() - start);
-    connectionEl.textContent = `● Подключено | ping: ${ms} ms`;
+    connectionEl.textContent = '● Подключено | ping: ' + ms + ' ms';
     connectionEl.style.color = '#0f0';
   });
 }
 
-db.ref('.info/connected').on('value', snap => {
+db.ref('.info/connected').on('value', snap=>{
   if(snap.val()){
     updatePing();
-  }else{
+  } else {
     connectionEl.textContent = '● Соединение потеряно';
     connectionEl.style.color = '#f00';
   }
 });
 
 setInterval(()=>navigator.onLine && updatePing(),3000);
-
-});
 </script>
 </body>
 </html>
