@@ -31,8 +31,10 @@ body{margin:0;background:#000;color:#fff;font-family:monospace}
 
 <script>
 // ===== SETTINGS =====
-var ADMIN_KEY = 'CHANGE_ME_123';
-var isAdmin = localStorage.getItem('isAdmin') === 'true';
+var ADMIN_KEY = 'ADMIN-1234';
+var OWNER_KEY = 'OWNER-ROOT-9999';
+
+var role = localStorage.getItem('role') || 'USER'; // USER | ADMIN | OWNER
 var userColor = localStorage.getItem('userColor') || '#ffffff';
 
 // ===== USER =====
@@ -57,6 +59,7 @@ var firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 var db = firebase.database();
 var messagesRef = db.ref('messages');
+var ownerLogsRef = db.ref('owner_logs');
 var typingRef = db.ref('typing');
 
 // ===== UI =====
@@ -71,7 +74,11 @@ function renderMessages(data){
   for(var k in data){
     var m = data[k];
     var nameHtml;
-    if(m.user && m.user.indexOf('[ADMIN] ') === 0){
+    if(m.user && m.user.indexOf('[OWNER] ') === 0){
+      var clean = m.user.replace('[OWNER] ','');
+      nameHtml = '<span style="color:red;font-weight:bold">[OWNER]</span> ' +
+                 '<span style="color:' + (m.color || '#ffffff') + '">' + clean + '</span>';
+    } else if(m.user && m.user.indexOf('[ADMIN] ') === 0){
       var clean = m.user.replace('[ADMIN] ','');
       nameHtml = '<span style="color:red;font-weight:bold">[ADMIN]</span> ' +
                  '<span style="color:' + (m.color || '#ffffff') + '">' + clean + '</span>';
@@ -88,6 +95,10 @@ messagesRef.limitToLast(100).on('value', function(snap){
 });
 
 // ===== INPUT =====
+function printSystem(text){
+  terminal.innerHTML += '<span style="color:#888">[SYSTEM]</span> ' + text + '<br>';
+}
+
 input.addEventListener('keydown', function(e){
   if(e.key !== 'Enter') return;
   var text = input.value.trim();
@@ -101,22 +112,54 @@ input.addEventListener('keydown', function(e){
   }
 
   if(text.indexOf('/key ') === 0){
-    if(text.slice(5).trim() === ADMIN_KEY){
-      isAdmin = true;
-      localStorage.setItem('isAdmin','true');
+    var key = text.slice(5).trim();
+
+    if(key === OWNER_KEY){
+      role = 'OWNER';
+      localStorage.setItem('role','OWNER');
+      ownerLogsRef.push({
+        user: username,
+        time: new Date().toLocaleString(),
+        ua: navigator.userAgent
+      });
+    } else if(key === ADMIN_KEY){
+      role = 'ADMIN';
+      localStorage.setItem('role','ADMIN');
     }
     input.value = '';
     return;
   }
+  }
 
   if(text === '/clear'){
-    if(isAdmin){ messagesRef.remove(); }
+    if(role === 'OWNER' || role === 'ADMIN'){ messagesRef.remove(); }
     input.value = '';
     return;
   }
 
+  if(text === '/ownerlogs'){
+    if(role !== 'OWNER'){
+      printSystem('Доступ запрещён');
+      input.value = '';
+      return;
+    }
+
+    ownerLogsRef.limitToLast(20).once('value', function(snap){
+      printSystem('Последние входы OWNER:');
+      snap.forEach(function(c){
+        var d = c.val();
+        terminal.innerHTML += '<span style="color:red">[OWNER]</span> ' + d.user + ' | ' + d.time + '<br>';
+      });
+      terminal.scrollTop = terminal.scrollHeight;
+    });
+
+    input.value = '';
+    return;
+  }
+  }
+
   messagesRef.push({
-    user:(isAdmin ? '[ADMIN] ' : '') + username,
+    user:(role === 'OWNER' ? '[OWNER] ' : role === 'ADMIN' ? '[ADMIN] ' : '') + username,
     text:text,
     time:new Date().toLocaleTimeString(),
     color:userColor
