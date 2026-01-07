@@ -10,60 +10,22 @@
 
 <style>
 body{margin:0;background:#000;color:#fff;font-family:monospace}
-#typing{position:fixed;top:0;left:0;width:100%;padding:6px 12px;color:#0f0;background:#000;border-bottom:1px solid #222;z-index:10}
-#terminal{padding:10px;padding-top:40px;padding-bottom:60px;height:100vh;overflow-y:auto;white-space:pre-wrap}
-#input{position:fixed;bottom:28px;left:0;width:100%;background:#000;color:#fff;border:none;outline:none;font-family:monospace;font-size:16px;padding:6px 10px}
-#connection{position:fixed;bottom:0;left:0;width:100%;padding:6px 12px;font-size:13px;background:#000;border-top:1px solid #222;color:#888}
+#typing{position:fixed;top:0;left:0;width:100%;padding:6px 12px;color:#0f0;border-bottom:1px solid #222}
+#terminal{padding:50px 10px 80px;height:100vh;overflow-y:auto;white-space:pre-wrap}
+#input{position:fixed;bottom:28px;left:0;width:100%;background:#000;color:#fff;border:none;outline:none;font-size:16px;padding:6px}
+#connection{position:fixed;bottom:0;left:0;width:100%;padding:6px 12px;border-top:1px solid #222;color:#888}
 </style>
 </head>
 <body>
 
 <div id="typing"></div>
 <div id="terminal"></div>
-<input id="input" placeholder="Введите сообщение и нажмите Enter">
-<div id="connection"></div>
+<input id="input" placeholder="Введите сообщение и Enter">
+<div id="connection">● Инициализация...</div>
 
 <script>
-// ===== KEYS =====
-const ADMIN_KEY = 'ADMIN-1234';
-const OWNER_KEY = 'OWNER-ROOT-9999';
+window.addEventListener('load', () => {
 
-// ===== STATE =====
-let role = localStorage.getItem('role') || 'USER';
-let userColor = localStorage.getItem('userColor') || '#ffffff';
-
-// ===== ENCRYPTION =====
-const CHAT_SECRET = 'CLI_CHAT_SECRET_2026'; // общий ключ
-
-function encrypt(text){
-  return btoa(text + '|' + CHAT_SECRET);
-}
-
-function decrypt(text){
-  try{
-    const decoded = atob(text);
-    if(decoded.endsWith('|' + CHAT_SECRET)){
-      return decoded.slice(0, -('|'+CHAT_SECRET).length);
-    }
-    return '[НЕ УДАЛОСЬ РАСШИФРОВАТЬ]';
-  }catch(e){
-    return '[ОШИБКА ШИФРОВАНИЯ]';
-  }
-}
-    return '[НЕ УДАЛОСЬ РАСШИФРОВАТЬ]';
-  }catch(e){
-    return '[ОШИБКА ШИФРОВАНИЯ]';
-  }
-}
-
-// ===== USER =====
-let username = localStorage.getItem('nickname');
-if(!username){
-  username = prompt('Введите ваш ник:') || 'user_' + Math.floor(Math.random()*1000);
-  localStorage.setItem('nickname', username);
-}
-
-// ===== FIREBASE =====
 const firebaseConfig = {
   apiKey: "AIzaSyBzPbPhYS7dDfhDwaqYLAHpIV6QBN53EV0",
   authDomain: "project-7979939474542798395.firebaseapp.com",
@@ -76,148 +38,80 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const messagesRef = db.ref('messages');
-const typingRef = db.ref('typing');
-const ownerLogsRef = db.ref('owner_logs');
 
-// ===== UI =====
 const terminal = document.getElementById('terminal');
 const input = document.getElementById('input');
 const typingEl = document.getElementById('typing');
 const connectionEl = document.getElementById('connection');
 
-function system(msg){
-  terminal.innerHTML += '<span style="color:#888">[SYSTEM]</span> ' + msg + '<br>';
+let username = localStorage.getItem('nick');
+if(!username){
+  username = prompt('Введите ник') || 'user' + Math.floor(Math.random()*1000);
+  localStorage.setItem('nick', username);
 }
 
-// ===== RENDER =====
-messagesRef.limitToLast(100).on('value', function(snap){
+terminal.textContent = 'CLI Chat started\nВаш ник: ' + username + '\n-------------------------\n';
+
+const messagesRef = db.ref('messages');
+const typingRef = db.ref('typing');
+
+messagesRef.limitToLast(100).on('value', snap => {
   terminal.innerHTML = '';
   const data = snap.val() || {};
-  Object.values(data).forEach(function(m){
-    let tag = '';
-    if(m.role === 'OWNER') tag = '<span style="color:red;font-weight:bold">[OWNER]</span> ';
-    else if(m.role === 'ADMIN') tag = '<span style="color:red">[ADMIN]</span> ';
-
-    terminal.innerHTML += '[' + m.time + '] ' + tag + '<span style="color:' + m.color + '">' + m.user + '</span>: ' + decrypt(m.text) + '<br>';
-  });
+  for(const k in data){
+    const m = data[k];
+    terminal.innerHTML += `[${m.time}] ${m.user}: ${m.text}\n`;
+  }
   terminal.scrollTop = terminal.scrollHeight;
 });
 
-// ===== INPUT =====
-input.addEventListener('keydown', function(e){
+input.addEventListener('keydown', e => {
   if(e.key !== 'Enter') return;
   const text = input.value.trim();
   if(!text) return;
 
-  if(text.indexOf('/color ') === 0){
-    userColor = text.slice(7).trim();
-    localStorage.setItem('userColor', userColor);
-    input.value = '';
-    return;
-  }
-
-  if(text.indexOf('/key ') === 0){
-    const key = text.slice(5).trim();
-    if(key === OWNER_KEY){
-      role = 'OWNER';
-      localStorage.setItem('role','OWNER');
-      ownerLogsRef.push({user:username,time:new Date().toLocaleString()});
-      system('Вы вошли как OWNER');
-    } else if(key === ADMIN_KEY){
-      role = 'ADMIN';
-      localStorage.setItem('role','ADMIN');
-      system('Вы вошли как ADMIN');
-    } else {
-      system('Неверный ключ');
-    }
-    input.value = '';
-    return;
-  }
-
-  if(text === '/ownerlogs'){
-    if(role !== 'OWNER'){
-      system('Доступ запрещён');
-      input.value = '';
-      return;
-    }
-    ownerLogsRef.limitToLast(20).once('value', function(snap){
-      system('Последние входы OWNER:');
-      snap.forEach(function(c){
-        const d = c.val();
-        terminal.innerHTML += '<span style="color:red">[OWNER]</span> ' + d.user + ' | ' + d.time + '<br>';
-      });
-    });
-    input.value = '';
-    return;
-  }
-
-  if(text === '/clear'){
-    if(role === 'OWNER' || role === 'ADMIN') messagesRef.remove();
-    input.value = '';
-    return;
-  }
-
   messagesRef.push({
     user: username,
-    role: role,
-    text: encrypt(text),
-    time: new Date().toLocaleTimeString(),
-    color: userColor
+    text: text,
+    time: new Date().toLocaleTimeString()
   });
 
   input.value = '';
   typingRef.child(username).remove();
 });
 
-input.addEventListener('input', function(){
+input.addEventListener('input', () => {
   typingRef.child(username).set(true);
-  setTimeout(function(){ typingRef.child(username).remove(); },1500);
+  setTimeout(()=>typingRef.child(username).remove(),1500);
 });
 
-typingRef.on('value', function(snap){
-  const users = snap.val() || {};
-  const list = Object.keys(users).filter(function(n){ return n !== username; });
+typingRef.on('value', snap => {
+  const u = snap.val() || {};
+  const list = Object.keys(u).filter(n=>n!==username);
   typingEl.textContent = list.length ? list.join(', ') + ' печатает...' : '';
 });
 
-// ===== CONNECTION + PING =====
-let lastPing = 0;
-
 function updatePing(){
   const start = performance.now();
-  db.ref('ping').set(Date.now()).then(function(){
+  db.ref('ping').set(Date.now()).then(()=>{
     const ms = Math.round(performance.now() - start);
-    connectionEl.textContent = '● Подключено | ping: ' + ms + ' ms';
-    connectionEl.style.color = '#0f0';
-  });
-}).catch(function(){
-    connectionEl.textContent = '● Подключено | ping: ?';
+    connectionEl.textContent = `● Подключено | ping: ${ms} ms`;
     connectionEl.style.color = '#0f0';
   });
 }
 
-db.ref('.info/connected').on('value', function(snap){
+db.ref('.info/connected').on('value', snap => {
   if(snap.val()){
     updatePing();
-  } else {
-    connectionEl.textContent = '● Соединение потеряно';
-    connectionEl.style.color = '#f00';
-  }
-});
-  } else {
+  }else{
     connectionEl.textContent = '● Соединение потеряно';
     connectionEl.style.color = '#f00';
   }
 });
 
-setInterval(function(){
-  if(navigator.onLine){
-    updatePing();
-  }
-}, 3000);
-  }
-}, 5000);
+setInterval(()=>navigator.onLine && updatePing(),3000);
 
-terminal.innerHTML = 'CLI Chat started<br>Ваш ник: ' + username + '<br>-------------------------<br>';
-
+});
+</script>
+</body>
+</html>
