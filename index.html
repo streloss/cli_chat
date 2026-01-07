@@ -9,12 +9,12 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <style>
-body {margin:0;background:#000;color:#fff;font-family:monospace;}
-#terminal {padding:10px;height:calc(100vh - 150px);overflow-y:auto;white-space:pre-wrap;}
-#roomBar {position:fixed;bottom:110px;left:0;width:100%;background:#111;padding:5px 10px;display:flex;justify-content:space-between;}
-#roomUsers {display:none;position:fixed;bottom:140px;left:0;width:100%;background:#000;color:#aaa;padding:5px 10px;font-size:13px;}
-#typing {position:fixed;bottom:80px;left:0;width:100%;padding:5px 10px;color:#888;font-size:14px;}
-#input {position:fixed;bottom:20px;left:0;width:100%;background:#000;color:#fff;border:none;outline:none;font-family:monospace;font-size:16px;padding:5px 10px;}
+body{margin:0;background:#000;color:#fff;font-family:monospace}
+#terminal{padding:10px;height:calc(100vh - 150px);overflow-y:auto;white-space:pre-wrap}
+#roomBar{position:fixed;bottom:110px;left:0;width:100%;background:#111;padding:5px 10px;display:flex;justify-content:space-between}
+#roomUsers{display:none;position:fixed;bottom:140px;left:0;width:100%;background:#000;color:#aaa;padding:5px 10px;font-size:13px}
+#typing{position:fixed;bottom:80px;left:0;width:100%;padding:5px 10px;color:#888;font-size:14px}
+#input{position:fixed;bottom:20px;left:0;width:100%;background:#000;color:#fff;border:none;outline:none;font-family:monospace;font-size:16px;padding:5px 10px}
 </style>
 </head>
 <body>
@@ -27,8 +27,8 @@ body {margin:0;background:#000;color:#fff;font-family:monospace;}
 
 <script>
 // ===== CONFIG =====
-const ADMIN_KEY = 'tenge'; // поменяй ключ
-let isAdmin = localStorage.getItem('isAdmin') === 'true';
+var ADMIN_KEY = 'CHANGE_ME_123';
+var isAdmin = localStorage.getItem('isAdmin') === 'true';
 
 // ===== UI =====
 var terminal = document.getElementById('terminal');
@@ -59,52 +59,51 @@ var typingRef = db.ref('typing');
 var presenceRef = db.ref('presence');
 
 // ===== MESSAGES =====
-function renderMessages(data) {
+function renderMessages(data){
   terminal.textContent = '';
-  for (var k in data) {
+  for(var k in data){
     var m = data[k];
     terminal.textContent += '[' + m.time + '] ' + m.user + ': ' + m.text + '\n';
   }
   terminal.scrollTop = terminal.scrollHeight;
 }
 
-messagesRef.limitToLast(100).on('value', snap => {
+messagesRef.limitToLast(100).on('value', function(snap){
   renderMessages(snap.val() || {});
 });
 
 // ===== INPUT =====
-input.addEventListener('keydown', e => {
-  if (e.key !== 'Enter') return;
+input.addEventListener('keydown', function(e){
+  if(e.key !== 'Enter') return;
+
   var text = input.value.trim();
-  if (!text) return;
+  if(!text) return;
 
-    // ADMIN LOGIN
-  if (text.startsWith('/key')) {
-    const parts = text.split(' ');
-    const enteredKey = parts.slice(1).join(' ').trim();
+  // ADMIN LOGIN
+  if(text.indexOf('/key') === 0){
+    var enteredKey = text.substring(4).trim();
 
-    if (!enteredKey) {
-      messagesRef.push({user:'system', text:'ℹ Использование: /key ВАШ_КЛЮЧ', time:new Date().toLocaleTimeString()});
+    if(!enteredKey){
+      messagesRef.push({user:'system',text:'ℹ Использование: /key ВАШ_КЛЮЧ',time:new Date().toLocaleTimeString()});
       input.value = '';
       return;
     }
 
-    if (enteredKey === ADMIN_KEY) {
+    if(enteredKey === ADMIN_KEY){
       isAdmin = true;
-      localStorage.setItem('isAdmin', 'true');
-      messagesRef.push({user:'system', text:'✅ Вы вошли как ADMIN', time:new Date().toLocaleTimeString()});
+      localStorage.setItem('isAdmin','true');
+      messagesRef.push({user:'system',text:'✅ Вы вошли как ADMIN',time:new Date().toLocaleTimeString()});
     } else {
-      messagesRef.push({user:'system', text:'❌ Неверный ключ', time:new Date().toLocaleTimeString()});
+      messagesRef.push({user:'system',text:'❌ Неверный ключ',time:new Date().toLocaleTimeString()});
     }
     input.value = '';
     return;
   }
-  }
 
   // CLEAR (ADMIN ONLY)
-  if (text === '/clear') {
-    if (!isAdmin) {
-      messagesRef.push({user:'system', text:'❌ Только ADMIN', time:new Date().toLocaleTimeString()});
+  if(text === '/clear'){
+    if(!isAdmin){
+      messagesRef.push({user:'system',text:'❌ Только ADMIN',time:new Date().toLocaleTimeString()});
       input.value = '';
       return;
     }
@@ -113,40 +112,42 @@ input.addEventListener('keydown', e => {
     return;
   }
 
-  messagesRef.push({user: username, text: text, time: new Date().toLocaleTimeString()});
+  messagesRef.push({user:username,text:text,time:new Date().toLocaleTimeString()});
   input.value = '';
   typingRef.child(username).remove();
 });
 
-input.addEventListener('input', () => {
+input.addEventListener('input', function(){
   typingRef.child(username).set(true);
-  setTimeout(() => typingRef.child(username).remove(), 1500);
+  setTimeout(function(){typingRef.child(username).remove();},1500);
 });
 
 // ===== TYPING =====
-typingRef.on('value', snap => {
+typingRef.on('value', function(snap){
   var users = snap.val() || {};
-  var list = Object.keys(users).filter(u => u !== username);
+  var list = [];
+  for(var u in users){if(u !== username) list.push(u);}
   typingEl.textContent = list.length ? list.join(', ') + ' печатает...' : '';
 });
 
 // ===== PRESENCE =====
-firebase.database().ref('.info/connected').on('value', snap => {
-  if (snap.val()) {
+firebase.database().ref('.info/connected').on('value', function(snap){
+  if(snap.val()){
     presenceRef.child(username).set(true);
     presenceRef.child(username).onDisconnect().remove();
   }
 });
 
-presenceRef.on('value', snap => {
-  var names = Object.keys(snap.val() || {});
+presenceRef.on('value', function(snap){
+  var users = snap.val() || {};
+  var names = Object.keys(users);
   roomCountEl.textContent = 'Users: ' + names.length;
   roomUsersEl.textContent = names.join(', ');
 });
 
 // ===== MOBILE BAR =====
 var open = false;
-toggleBar.onclick = () => {
+toggleBar.onclick = function(){
   open = !open;
   roomUsersEl.style.display = open ? 'block' : 'none';
   toggleBar.textContent = open ? 'v' : '^';
