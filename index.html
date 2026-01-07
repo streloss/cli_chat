@@ -10,10 +10,10 @@
 
 <style>
 body{margin:0;background:#000;color:#fff;font-family:monospace}
-#terminal{padding:10px;padding-top:60px;padding-bottom:60px;height:100vh;overflow-y:auto}
-#typing{position:fixed;top:0;left:0;width:100%;padding:6px 12px;color:#0f0;font-size:14px;background:rgba(0,0,0,0.95);border-bottom:1px solid #222;z-index:9999}
-#connection{position:fixed;bottom:0;left:0;width:100%;padding:6px 12px;font-size:13px;background:rgba(0,0,0,0.95);border-top:1px solid #222;z-index:9999;color:#888}
+#typing{position:fixed;top:0;left:0;width:100%;padding:6px 12px;color:#0f0;background:#000;border-bottom:1px solid #222;z-index:10}
+#terminal{padding:10px;padding-top:40px;padding-bottom:60px;height:100vh;overflow-y:auto}
 #input{position:fixed;bottom:28px;left:0;width:100%;background:#000;color:#fff;border:none;outline:none;font-family:monospace;font-size:16px;padding:6px 10px}
+#connection{position:fixed;bottom:0;left:0;width:100%;padding:6px 12px;font-size:13px;background:#000;border-top:1px solid #222;color:#888}
 </style>
 </head>
 <body>
@@ -33,7 +33,7 @@ var userColor = localStorage.getItem('userColor') || '#ffffff';
 var username = localStorage.getItem('nickname');
 if(!username){
   username = prompt('Введите ваш ник:');
-  if(!username) username = 'user_' + Math.floor(Math.random()*1000);
+  if(!username){ username = 'user_' + Math.floor(Math.random()*1000); }
   localStorage.setItem('nickname', username);
 }
 
@@ -104,7 +104,7 @@ input.addEventListener('keydown', function(e){
   }
 
   if(text === '/clear'){
-    if(isAdmin) messagesRef.remove();
+    if(isAdmin){ messagesRef.remove(); }
     input.value = '';
     return;
   }
@@ -128,7 +128,7 @@ input.addEventListener('input', function(){
 typingRef.on('value', function(snap){
   var users = snap.val() || {};
   var list = [];
-  for(var u in users){ if(u !== username) list.push(u); }
+  for(var u in users){ if(u !== username){ list.push(u); } }
   typingEl.textContent = list.length ? list.join(', ') + ' печатает...' : '';
 });
 
@@ -152,7 +152,7 @@ db.ref('.info/connected').on('value', function(snap){
 });
 
 setInterval(function(){
-  if(navigator.onLine) updatePing();
+  if(navigator.onLine){ updatePing(); }
 }, 5000);
 
 terminal.textContent = 'CLI Chat started\nВаш ник: ' + username + '\n-------------------------\n';
