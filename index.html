@@ -10,18 +10,18 @@
 
 <style>
 body{margin:0;background:#000;color:#fff;font-family:monospace}
-#terminal{padding:10px;padding-bottom:120px;height:100vh;overflow-y:auto}
+#terminal{padding:10px;padding-top:60px;padding-bottom:60px;height:100vh;overflow-y:auto}
 #typing{position:fixed;top:0;left:0;width:100%;padding:6px 12px;color:#0f0;font-size:14px;background:rgba(0,0,0,0.95);border-bottom:1px solid #222;z-index:9999}
 #connection{position:fixed;bottom:0;left:0;width:100%;padding:6px 12px;font-size:13px;background:rgba(0,0,0,0.95);border-top:1px solid #222;z-index:9999;color:#888}
-#input{position:fixed;bottom:20px;left:0;width:100%;background:#000;color:#fff;border:none;outline:none;font-family:monospace;font-size:16px;padding:5px 10px}
+#input{position:fixed;bottom:28px;left:0;width:100%;background:#000;color:#fff;border:none;outline:none;font-family:monospace;font-size:16px;padding:6px 10px}
 </style>
 </head>
 <body>
 
-<div id="terminal"></div>
 <div id="typing"></div>
-<div id="connection"></div>
+<div id="terminal"></div>
 <input id="input" placeholder="Введите сообщение и нажмите Enter">
+<div id="connection"></div>
 
 <script>
 // ===== SETTINGS =====
@@ -64,16 +64,15 @@ function renderMessages(data){
   terminal.innerHTML = '';
   for(var k in data){
     var m = data[k];
-    var nameHtml = '';
-
+    var nameHtml;
     if(m.user && m.user.indexOf('[ADMIN] ') === 0){
       var clean = m.user.replace('[ADMIN] ','');
-      nameHtml = `<span style="color:red;font-weight:bold">[ADMIN]</span> <span style="color:${m.color || '#ffffff'}">${clean}</span>`;
+      nameHtml = '<span style="color:red;font-weight:bold">[ADMIN]</span> ' +
+                 '<span style="color:' + (m.color || '#ffffff') + '">' + clean + '</span>';
     } else {
-      nameHtml = `<span style="color:${m.color || '#ffffff'}">${m.user}</span>`;
+      nameHtml = '<span style="color:' + (m.color || '#ffffff') + '">' + m.user + '</span>';
     }
-
-    terminal.innerHTML += `[${m.time}] ${nameHtml}: ${m.text}<br>`;
+    terminal.innerHTML += '[' + m.time + '] ' + nameHtml + ': ' + m.text + '<br>';
   }
   terminal.scrollTop = terminal.scrollHeight;
 }
@@ -88,14 +87,14 @@ input.addEventListener('keydown', function(e){
   var text = input.value.trim();
   if(!text) return;
 
-  if(text.startsWith('/color ')){
+  if(text.indexOf('/color ') === 0){
     userColor = text.slice(7).trim();
     localStorage.setItem('userColor', userColor);
     input.value = '';
     return;
   }
 
-  if(text.startsWith('/key ')){
+  if(text.indexOf('/key ') === 0){
     if(text.slice(5).trim() === ADMIN_KEY){
       isAdmin = true;
       localStorage.setItem('isAdmin','true');
@@ -133,23 +132,19 @@ typingRef.on('value', function(snap){
   typingEl.textContent = list.length ? list.join(', ') + ' печатает...' : '';
 });
 
-// ===== CONNECTION STATUS + PING =====
-var pingStart = 0;
-var latency = null;
-
-function updateLatency(){
-  pingStart = Date.now();
-  db.ref('ping').set(pingStart).then(function(){
-    latency = Date.now() - pingStart;
-    connectionEl.textContent += ' | ping: ' + latency + ' ms';
+// ===== CONNECTION + PING =====
+function updatePing(){
+  var start = Date.now();
+  db.ref('ping').set(start).then(function(){
+    var ms = Date.now() - start;
+    connectionEl.textContent = '● Подключено | ping: ' + ms + ' ms';
+    connectionEl.style.color = '#0f0';
   });
 }
 
 db.ref('.info/connected').on('value', function(snap){
   if(snap.val() === true){
-    connectionEl.textContent = '● Подключено';
-    connectionEl.style.color = '#0f0';
-    updateLatency();
+    updatePing();
   } else {
     connectionEl.textContent = '● Соединение потеряно';
     connectionEl.style.color = '#f00';
@@ -157,10 +152,8 @@ db.ref('.info/connected').on('value', function(snap){
 });
 
 setInterval(function(){
-  if(navigator.onLine) updateLatency();
-}, 5000); }
-  typingEl.textContent = list.length ? list.join(', ') + ' печатает...' : '';
-});
+  if(navigator.onLine) updatePing();
+}, 5000);
 
 terminal.textContent = 'CLI Chat started\nВаш ник: ' + username + '\n-------------------------\n';
 </script>
