@@ -2,118 +2,113 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>CLI Chat (Firebase)</title>
+<title>CLI Chat</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
 <style>
-    body {
-        margin: 0;
-        background: black;
-        color: #ffffff;
-        font-family: monospace;
-        font-size: 16px;
-    }
-    #typing {
-        padding: 8px 10px;
-        color: #888;
-        font-size: 14px;
-        border-bottom: 1px solid #222;
-    }
-    #terminal {
-        padding: 10px;
-        height: calc(100vh - 120px);
-        overflow-y: auto;
-        white-space: pre-wrap;
-    }
-    #input {
-        outline: none;
-        border: none;
-        background: black;
-        color: #ffffff;
-        font-family: monospace;
-        font-size: 16px;
-        width: 100%;
-        position: fixed;
-        bottom: 20px;
-        left: 0;
-        padding: 5px 10px;
-    }
+body {
+    margin: 0;
+    background: black;
+    color: #ffffff;
+    font-family: monospace;
+    font-size: 16px;
+}
+#typing {
+    padding: 5px 10px;
+    color: #888;
+    font-size: 14px;
+}
+#terminal {
+    padding: 10px;
+    height: calc(100vh - 90px);
+    overflow-y: auto;
+    white-space: pre-wrap;
+}
+#input {
+    outline: none;
+    border: none;
+    background: black;
+    color: #ffffff;
+    font-family: monospace;
+    font-size: 16px;
+    width: 100%;
+    position: fixed;
+    bottom: 20px;
+    left: 0;
+    padding: 5px 10px;
+}
 </style>
 </head>
 <body>
 
-<div id="typing">Подключение…</div>
+<div id="typing"></div>
 <div id="terminal"></div>
 <input id="input" autocomplete="off" autofocus placeholder="Введите сообщение и нажмите Enter">
 
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-
 <script>
-    // Firebase SDK должен быть подключён ВЫШЕ этого скрипта
+const terminal = document.getElementById('terminal');
+const input = document.getElementById('input');
+const typingEl = document.getElementById('typing');
 
-    const terminal = document.getElementById('terminal');
-    const input = document.getElementById('input');
-    const typingEl = document.getElementById('typing');
+const username = 'user_' + Math.floor(Math.random() * 1000);
 
-    const username = 'user_' + Math.floor(Math.random() * 1000);
+const firebaseConfig = {
+  apiKey: "AIzaSyBzPbPhYS7dDfhDwaqYLAHpIV6QBN53EV0",
+  authDomain: "project-7979939474542798395.firebaseapp.com",
+  databaseURL: "https://project-7979939474542798395-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "project-7979939474542798395",
+  storageBucket: "project-7979939474542798395.firebasestorage.app",
+  messagingSenderId: "64773662070",
+  appId: "1:64773662070:web:59a5ade363119a1b61c657",
+  measurementId: "G-FP4X149HMS"
+};
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyBzPbPhYS7dDfhDwaqYLAHpIV6QBN53EV0",
-        authDomain: "project-7979939474542798395.firebaseapp.com",
-        databaseURL: "https://project-7979939474542798395-default-rtdb.europe-west1.firebasedatabase.app",
-        projectId: "project-7979939474542798395",
-        storageBucket: "project-7979939474542798395.firebasestorage.app",
-        messagingSenderId: "64773662070",
-        appId: "1:64773662070:web:59a5ade363119a1b61c657",
-        measurementId: "G-FP4X149HMS"
-    };
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+const messagesRef = db.ref('messages');
+const typingRef = db.ref('typing');
 
-    const messagesRef = db.ref('messages');
-    const typingRef = db.ref('typing');
+function renderMessages(data) {
+    terminal.textContent = '';
+    Object.values(data || {}).forEach(m => {
+        terminal.textContent += `[${m.time}] ${m.user}: ${m.text}\n`;
+    });
+    terminal.scrollTop = terminal.scrollHeight;
+}
 
-    function renderMessages(data) {
-        terminal.textContent = '';
-        Object.values(data || {}).forEach(m => {
-            terminal.textContent += `[${m.time}] ${m.user}: ${m.text}\n`;
+messagesRef.limitToLast(100).on('value', snap => {
+    renderMessages(snap.val());
+});
+
+input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && input.value.trim() !== '') {
+        messagesRef.push({
+            user: username,
+            text: input.value,
+            time: new Date().toLocaleTimeString()
         });
-        terminal.scrollTop = terminal.scrollHeight;
+        input.value = '';
+        typingRef.child(username).remove();
     }
+});
 
-    // realtime обновление сообщений
-    messagesRef.limitToLast(100).on('value', snap => {
-        renderMessages(snap.val());
-    });
+input.addEventListener('input', () => {
+    typingRef.child(username).set(true);
+    setTimeout(() => typingRef.child(username).remove(), 1500);
+});
 
-    // отправка сообщений
-    input.addEventListener('keydown', e => {
-        if (e.key === 'Enter' && input.value.trim() !== '') {
-            messagesRef.push({
-                user: username,
-                text: input.value,
-                time: new Date().toLocaleTimeString()
-            });
-            input.value = '';
-            typingRef.child(username).remove();
-        }
-    });
+typingRef.on('value', snap => {
+    const users = snap.val() || {};
+    const others = Object.keys(users).filter(u => u !== username);
+    typingEl.textContent = others.length ? others.join(', ') + ' печатает...' : '';
+});
 
-    // статус печати
-    input.addEventListener('input', () => {
-        typingRef.child(username).set(true);
-        setTimeout(() => typingRef.child(username).remove(), 1500);
-    });
-
-    typingRef.on('value', snap => {
-        const users = snap.val() || {};
-        const others = Object.keys(users).filter(u => u !== username);
-        typingEl.textContent = others.length ? others.join(', ') + ' печатает...' : '';
-    });
-
-    terminal.textContent = `CLI Chat запущен\nВаш ник: ${username}\n-------------------------\n`;
+terminal.textContent = `CLI Chat запущен\nВаш ник: ${username}\n-------------------------\n`;
 </script>
 </body>
 </html>
