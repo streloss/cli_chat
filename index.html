@@ -5,91 +5,37 @@
 <title>CLI Chat</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <style>
-body {
-  margin: 0;
-  background: black;
-  color: #fff;
-  font-family: monospace;
-}
-#terminal {
-  padding: 10px;
-  height: calc(100vh - 140px);
-  overflow-y: auto;
-  white-space: pre-wrap;
-}
-#typing {
-  position: fixed;
-  bottom: 80px;
-  left: 0;
-  width: 100%;
-  padding: 5px 10px;
-  font-size: 14px;
-  color: #888;
-  background: black;
-}
-#roomBar {
-  position: fixed;
-  bottom: 110px;
-  left: 0;
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  padding: 5px 10px;
-  background: #111;
-}
-#roomUsers {
-  display: none;
-  position: fixed;
-  bottom: 140px;
-  left: 0;
-  width: 100%;
-  padding: 5px 10px;
-  background: black;
-  color: #aaa;
-  font-size: 13px;
-}
-#input {
-  position: fixed;
-  bottom: 20px;
-  left: 0;
-  width: 100%;
-  border: none;
-  outline: none;
-  background: black;
-  color: #fff;
-  font-family: monospace;
-  font-size: 16px;
-  padding: 5px 10px;
-}
+body {margin:0;background:#000;color:#fff;font-family:monospace;}
+#terminal {padding:10px;height:calc(100vh - 150px);overflow-y:auto;white-space:pre-wrap;}
+#roomBar {position:fixed;bottom:110px;left:0;width:100%;background:#111;padding:5px 10px;display:flex;justify-content:space-between;}
+#roomUsers {display:none;position:fixed;bottom:140px;left:0;width:100%;background:#000;color:#aaa;padding:5px 10px;font-size:13px;}
+#typing {position:fixed;bottom:80px;left:0;width:100%;padding:5px 10px;color:#888;font-size:14px;}
+#input {position:fixed;bottom:20px;left:0;width:100%;background:#000;color:#fff;border:none;outline:none;font-family:monospace;font-size:16px;padding:5px 10px;}
 </style>
 </head>
 <body>
 
 <div id="terminal"></div>
-<div id="roomBar">
-  <span id="roomCount">👥 0</span>
-  <span id="toggleBar">⬆</span>
-</div>
+<div id="roomBar"><span id="roomCount">Users: 0</span><span id="toggleBar">^</span></div>
 <div id="roomUsers"></div>
 <div id="typing"></div>
-<input id="input" placeholder="Введите сообщение и Enter">
+<input id="input" placeholder="Enter message and press Enter">
 
 <script>
-const terminal = document.getElementById('terminal');
-const input = document.getElementById('input');
-const typingEl = document.getElementById('typing');
-const roomCountEl = document.getElementById('roomCount');
-const roomUsersEl = document.getElementById('roomUsers');
-const toggleBar = document.getElementById('toggleBar');
+var terminal = document.getElementById('terminal');
+var input = document.getElementById('input');
+var typingEl = document.getElementById('typing');
+var roomCountEl = document.getElementById('roomCount');
+var roomUsersEl = document.getElementById('roomUsers');
+var toggleBar = document.getElementById('toggleBar');
 
-const username = 'user_' + Math.floor(Math.random() * 1000);
+var username = 'user_' + Math.floor(Math.random() * 1000);
 
-const firebaseConfig = {
+var firebaseConfig = {
   apiKey: "AIzaSyBzPbPhYS7dDfhDwaqYLAHpIV6QBN53EV0",
   authDomain: "project-7979939474542798395.firebaseapp.com",
   databaseURL: "https://project-7979939474542798395-default-rtdb.europe-west1.firebasedatabase.app",
@@ -100,72 +46,68 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+var db = firebase.database();
 
-const messagesRef = db.ref('messages');
-const typingRef = db.ref('typing');
-const presenceRef = db.ref('presence');
+var messagesRef = db.ref('messages');
+var typingRef = db.ref('typing');
+var presenceRef = db.ref('presence');
 
 function renderMessages(data) {
   terminal.textContent = '';
-  Object.values(data || {}).forEach(m => {
-    terminal.textContent += `[${m.time}] ${m.user}: ${m.text}\n`;
-  });
+  for (var k in data) {
+    var m = data[k];
+    terminal.textContent += '[' + m.time + '] ' + m.user + ': ' + m.text + '\n';
+  }
   terminal.scrollTop = terminal.scrollHeight;
 }
 
-messagesRef.limitToLast(100).on('value', snap => {
-  renderMessages(snap.val());
+messagesRef.limitToLast(100).on('value', function(snap){
+  renderMessages(snap.val() || {});
 });
 
-input.addEventListener('keydown', e => {
+input.addEventListener('keydown', function(e){
   if (e.key !== 'Enter') return;
-  const text = input.value.trim();
+  var text = input.value.trim();
   if (!text) return;
-
-  messagesRef.push({
-    user: username,
-    text,
-    time: new Date().toLocaleTimeString()
-  });
-
+  messagesRef.push({user: username, text: text, time: new Date().toLocaleTimeString()});
   input.value = '';
   typingRef.child(username).remove();
 });
 
-input.addEventListener('input', () => {
+input.addEventListener('input', function(){
   typingRef.child(username).set(true);
-  setTimeout(() => typingRef.child(username).remove(), 1500);
+  setTimeout(function(){ typingRef.child(username).remove(); }, 1500);
 });
 
-typingRef.on('value', snap => {
-  const users = snap.val() || {};
-  const list = Object.keys(users).filter(u => u !== username);
-  typingEl.textContent = list.length ? list.join(', ') + ' печатает...' : '';
+typingRef.on('value', function(snap){
+  var users = snap.val() || {};
+  var list = [];
+  for (var u in users) if (u !== username) list.push(u);
+  typingEl.textContent = list.length ? list.join(', ') + ' typing...' : '';
 });
 
-firebase.database().ref('.info/connected').on('value', snap => {
+firebase.database().ref('.info/connected').on('value', function(snap){
   if (snap.val()) {
     presenceRef.child(username).set(true);
     presenceRef.child(username).onDisconnect().remove();
   }
 });
 
-presenceRef.on('value', snap => {
-  const users = snap.val() || {};
-  const names = Object.keys(users);
-  roomCountEl.textContent = `👥 ${names.length}`;
-  roomUsersEl.textContent = names.length ? 'В комнате: ' + names.join(', ') : 'В комнате никого нет';
+presenceRef.on('value', function(snap){
+  var users = snap.val() || {};
+  var names = Object.keys(users);
+  roomCountEl.textContent = 'Users: ' + names.length;
+  roomUsersEl.textContent = names.length ? 'In room: ' + names.join(', ') : 'Room empty';
 });
 
-let open = false;
-toggleBar.onclick = () => {
+var open = false;
+toggleBar.onclick = function(){
   open = !open;
   roomUsersEl.style.display = open ? 'block' : 'none';
-  toggleBar.textContent = open ? '⬇' : '⬆';
+  toggleBar.textContent = open ? 'v' : '^';
 };
 
-terminal.textContent = `CLI Chat запущен\nВаш ник: ${username}\n-------------------------\n`;
+terminal.textContent = 'CLI Chat started\nYour nick: ' + username + '\n-------------------------\n';
 </script>
 </body>
 </html>
