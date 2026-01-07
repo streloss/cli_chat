@@ -26,6 +26,11 @@ body {margin:0;background:#000;color:#fff;font-family:monospace;}
 <input id="input" placeholder="Enter message and press Enter">
 
 <script>
+// ===== CONFIG =====
+const ADMIN_KEY = 'Tenge228'; // поменяй ключ
+let isAdmin = localStorage.getItem('isAdmin') === 'true';
+
+// ===== UI =====
 var terminal = document.getElementById('terminal');
 var input = document.getElementById('input');
 var typingEl = document.getElementById('typing');
@@ -35,6 +40,7 @@ var toggleBar = document.getElementById('toggleBar');
 
 var username = 'user_' + Math.floor(Math.random() * 1000);
 
+// ===== FIREBASE =====
 var firebaseConfig = {
   apiKey: "AIzaSyBzPbPhYS7dDfhDwaqYLAHpIV6QBN53EV0",
   authDomain: "project-7979939474542798395.firebaseapp.com",
@@ -52,6 +58,7 @@ var messagesRef = db.ref('messages');
 var typingRef = db.ref('typing');
 var presenceRef = db.ref('presence');
 
+// ===== MESSAGES =====
 function renderMessages(data) {
   terminal.textContent = '';
   for (var k in data) {
@@ -61,53 +68,81 @@ function renderMessages(data) {
   terminal.scrollTop = terminal.scrollHeight;
 }
 
-messagesRef.limitToLast(100).on('value', function(snap){
+messagesRef.limitToLast(100).on('value', snap => {
   renderMessages(snap.val() || {});
 });
 
-input.addEventListener('keydown', function(e){
+// ===== INPUT =====
+input.addEventListener('keydown', e => {
   if (e.key !== 'Enter') return;
   var text = input.value.trim();
   if (!text) return;
+
+  // ADMIN LOGIN
+  if (text.startsWith('/key ')) {
+    if (text.split(' ')[1] === ADMIN_KEY) {
+      isAdmin = true;
+      localStorage.setItem('isAdmin', 'true');
+      messagesRef.push({user:'system', text:'Вы вошли как ADMIN', time:new Date().toLocaleTimeString()});
+    } else {
+      messagesRef.push({user:'system', text:'Неверный ключ', time:new Date().toLocaleTimeString()});
+    }
+    input.value = '';
+    return;
+  }
+
+  // CLEAR (ADMIN ONLY)
+  if (text === '/clear') {
+    if (!isAdmin) {
+      messagesRef.push({user:'system', text:'Только ADMIN имеет право', time:new Date().toLocaleTimeString()});
+      input.value = '';
+      return;
+    }
+    messagesRef.remove();
+    input.value = '';
+    return;
+  }
+
   messagesRef.push({user: username, text: text, time: new Date().toLocaleTimeString()});
   input.value = '';
   typingRef.child(username).remove();
 });
 
-input.addEventListener('input', function(){
+input.addEventListener('input', () => {
   typingRef.child(username).set(true);
-  setTimeout(function(){ typingRef.child(username).remove(); }, 1500);
+  setTimeout(() => typingRef.child(username).remove(), 1500);
 });
 
-typingRef.on('value', function(snap){
+// ===== TYPING =====
+typingRef.on('value', snap => {
   var users = snap.val() || {};
-  var list = [];
-  for (var u in users) if (u !== username) list.push(u);
-  typingEl.textContent = list.length ? list.join(', ') + ' typing...' : '';
+  var list = Object.keys(users).filter(u => u !== username);
+  typingEl.textContent = list.length ? list.join(', ') + ' печатает...' : '';
 });
 
-firebase.database().ref('.info/connected').on('value', function(snap){
+// ===== PRESENCE =====
+firebase.database().ref('.info/connected').on('value', snap => {
   if (snap.val()) {
     presenceRef.child(username).set(true);
     presenceRef.child(username).onDisconnect().remove();
   }
 });
 
-presenceRef.on('value', function(snap){
-  var users = snap.val() || {};
-  var names = Object.keys(users);
+presenceRef.on('value', snap => {
+  var names = Object.keys(snap.val() || {});
   roomCountEl.textContent = 'Users: ' + names.length;
-  roomUsersEl.textContent = names.length ? 'In room: ' + names.join(', ') : 'Room empty';
+  roomUsersEl.textContent = names.join(', ');
 });
 
+// ===== MOBILE BAR =====
 var open = false;
-toggleBar.onclick = function(){
+toggleBar.onclick = () => {
   open = !open;
   roomUsersEl.style.display = open ? 'block' : 'none';
   toggleBar.textContent = open ? 'v' : '^';
 };
 
-terminal.textContent = 'CLI Chat started\nYour nick: ' + username + '\n-------------------------\n';
+terminal.textContent = 'CLI Chat started\nYour nick: ' + username + (isAdmin ? ' [ADMIN]' : '') + '\n-------------------------\n';
 </script>
 </body>
 </html>
