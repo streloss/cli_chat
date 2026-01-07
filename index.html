@@ -113,7 +113,6 @@ input.addEventListener('keydown', function(e){
 
   if(text.indexOf('/key ') === 0){
     var key = text.slice(5).trim();
-
     if(key === OWNER_KEY){
       role = 'OWNER';
       localStorage.setItem('role','OWNER');
@@ -122,17 +121,14 @@ input.addEventListener('keydown', function(e){
         time: new Date().toLocaleString(),
         ua: navigator.userAgent
       });
+      printSystem('Вы вошли как OWNER');
     } else if(key === ADMIN_KEY){
       role = 'ADMIN';
       localStorage.setItem('role','ADMIN');
+      printSystem('Вы вошли как ADMIN');
+    } else {
+      printSystem('Неверный ключ');
     }
-    input.value = '';
-    return;
-  }
-  }
-
-  if(text === '/clear'){
-    if(role === 'OWNER' || role === 'ADMIN'){ messagesRef.remove(); }
     input.value = '';
     return;
   }
@@ -143,7 +139,6 @@ input.addEventListener('keydown', function(e){
       input.value = '';
       return;
     }
-
     ownerLogsRef.limitToLast(20).once('value', function(snap){
       printSystem('Последние входы OWNER:');
       snap.forEach(function(c){
@@ -152,10 +147,16 @@ input.addEventListener('keydown', function(e){
       });
       terminal.scrollTop = terminal.scrollHeight;
     });
-
     input.value = '';
     return;
   }
+
+  if(text === '/clear'){
+    if(role === 'OWNER' || role === 'ADMIN'){
+      messagesRef.remove();
+    }
+    input.value = '';
+    return;
   }
 
   messagesRef.push({
@@ -167,6 +168,7 @@ input.addEventListener('keydown', function(e){
 
   input.value = '';
   typingRef.child(username).remove();
+});
 });
 
 input.addEventListener('input', function(){
