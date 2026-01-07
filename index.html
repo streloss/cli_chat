@@ -93,7 +93,7 @@ input.addEventListener('keydown', function(e){
     return;
   }
 
-  messagesRef.push({user:username,text:text,time:new Date().toLocaleTimeString()});
+  messagesRef.push({user:(isAdmin ? '[ADMIN] ' : '') + username,text:text,time:new Date().toLocaleTimeString()});
   input.value = '';
   typingRef.child(username).remove();
 });
