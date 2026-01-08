@@ -139,3 +139,144 @@ db.ref('.info/connected').on('value', function(s){
 </script>
 </body>
 </html>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>CLI Chat Clean</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Firebase (ТОЛЬКО ОДИН РАЗ) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<style>
+body{margin:0;background:#000;color:#fff;font-family:monospace}
+#top{position:fixed;top:0;left:0;width:100%;padding:6px 10px;border-bottom:1px solid #222;background:#000}
+#online{cursor:pointer;color:#0f0}
+#onlineList{display:none;font-size:13px;color:#aaa}
+#terminal{padding:50px 10px 70px;height:100vh;overflow-y:auto;white-space:pre-wrap}
+#input{position:fixed;bottom:28px;left:0;width:100%;background:#000;color:#fff;border:none;outline:none;font-family:monospace;font-size:16px;padding:6px 10px}
+#status{position:fixed;bottom:0;left:0;width:100%;padding:6px 10px;font-size:13px;border-top:1px solid #222;color:#888}
+.owner{color:red;font-weight:bold}
+.admin{color:#ff5555}
+</style>
+</head>
+<body>
+
+<div id="top">
+  <span id="online">В сети: 0</span>
+  <div id="onlineList"></div>
+</div>
+
+<div id="terminal"></div>
+<input id="input" placeholder="Введите сообщение и Enter">
+<div id="status">Подключение...</div>
+
+<script>
+/* ===== НАСТОЯЩИЙ ЧИСТЫЙ JS (БЕЗ ЛОВУШЕК) ===== */
+
+var PASSWORD = 'sayayo';
+
+var firebaseConfig = {
+  apiKey: "AIzaSyBzPbPhYS7dDfhDwaqYLAHpIV6QBN53EV0",
+  authDomain: "project-7979939474542798395.firebaseapp.com",
+  databaseURL: "https://project-7979939474542798395-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "project-7979939474542798395",
+  storageBucket: "project-7979939474542798395.firebasestorage.app",
+  messagingSenderId: "64773662070",
+  appId: "1:64773662070:web:59a5ade363119a1b61c657"
+};
+
+firebase.initializeApp(firebaseConfig);
+var db = firebase.database();
+
+var username = localStorage.getItem('nick');
+if(!username){
+  username = prompt('Введите ник');
+  localStorage.setItem('nick', username);
+}
+
+var role = localStorage.getItem('role') || 'USER';
+
+var color = localStorage.getItem('color');
+if(!color){
+  var arr = ['#ff5555','#55ff55','#5555ff','#ffaa00','#00ffaa','#aa00ff'];
+  color = arr[Math.floor(Math.random()*arr.length)];
+  localStorage.setItem('color', color);
+}
+
+var messagesRef = db.ref('messages');
+var onlineRef = db.ref('online/' + username);
+
+var terminal = document.getElementById('terminal');
+var input = document.getElementById('input');
+var statusEl = document.getElementById('status');
+var onlineEl = document.getElementById('online');
+var onlineListEl = document.getElementById('onlineList');
+
+function system(msg){
+  terminal.textContent += '[SYSTEM] ' + msg + '
+';
+}
+
+onlineRef.set(true);
+onlineRef.onDisconnect().remove();
+
+db.ref('online').on('value', function(s){
+  var u = s.val() || {};
+  var list = Object.keys(u);
+  onlineEl.textContent = 'В сети: ' + list.length;
+  onlineListEl.textContent = list.join(', ');
+});
+
+onlineEl.onclick = function(){
+  onlineListEl.style.display = onlineListEl.style.display === 'block' ? 'none' : 'block';
+};
+
+messagesRef.limitToLast(100).on('child_added', function(s){
+  var m = s.val();
+  var tag = '';
+  if(m.role === 'OWNER') tag = '[OWNER] ';
+  if(m.role === 'ADMIN') tag = '[ADMIN] ';
+  terminal.textContent += '[' + m.time + '] ' + tag + m.user + ': ' + m.text + '
+';
+  terminal.scrollTop = terminal.scrollHeight;
+});
+
+input.addEventListener('keydown', function(e){
+  if(e.key !== 'Enter') return;
+  var t = input.value.trim();
+  if(!t) return;
+
+  if(t.indexOf('/key ') === 0){
+    var p = t.split(' ');
+    if(p[2] !== PASSWORD){ system('Неверный пароль'); input.value=''; return; }
+    if(p[1] === 'owner'){ role='OWNER'; localStorage.setItem('role','OWNER'); system('Вы OWNER'); }
+    if(p[1] === 'admin'){ role='ADMIN'; localStorage.setItem('role','ADMIN'); system('Вы ADMIN'); }
+    input.value=''; return;
+  }
+
+  if(t === '/clear'){
+    if(role === 'OWNER' || role === 'ADMIN') messagesRef.remove();
+    else system('Нет прав');
+    input.value=''; return;
+  }
+
+  messagesRef.push({
+    user: username,
+    role: role,
+    text: t,
+    time: new Date().toLocaleTimeString(),
+    color: color
+  });
+
+  input.value='';
+});
+
+db.ref('.info/connected').on('value', function(s){
+  statusEl.textContent = s.val() ? 'Подключено' : 'Соединение потеряно';
+});
+</script>
+</body>
+</html>
