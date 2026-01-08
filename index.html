@@ -75,7 +75,9 @@ var onlineEl = document.getElementById('online');
 var onlineListEl = document.getElementById('onlineList');
 
 function system(msg){
-  terminal.textContent += '[SYSTEM] ' + msg + '\n';
+  terminal.innerHTML +=
+    '<div style="color:#888">[SYSTEM] ' + msg + '</div>';
+  terminal.scrollTop = terminal.scrollHeight;
 }
 
 onlineRef.set(true);
