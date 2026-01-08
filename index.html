@@ -43,19 +43,6 @@ return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
   ? '📱 Mobile'
   : '🖥️ PC';
 }
-  
-  typingRef.on('value', function(s){
-  var users = s.val() || {};
-  var list = Object.keys(users).filter(u => u !== username);
-
-  if(list.length){
-    typingEl.style.display = 'block';
-    typingEl.textContent = '✍️ Печатает: ' + list.join(', ');
-  } else {
-    typingEl.style.display = 'none';
-  }
-});
-
 
 var PASSWORD = 'sayayo';
 
@@ -197,6 +184,19 @@ db.ref('.info/connected').on('value', function(s){
     statusEl.innerHTML = '<span style="color:#f00">● Оффлайн</span>';
   }
 });
+
+typingRef.on('value', function(s){
+  var users = s.val() || {};
+  var list = Object.keys(users).filter(u => u !== username);
+
+  if(list.length){
+    typingEl.style.display = 'block';
+    typingEl.textContent = '✍️ Печатает: ' + list.join(', ');
+  } else {
+    typingEl.style.display = 'none';
+  }
+});
+
 </script>
 </body>
 </html>
