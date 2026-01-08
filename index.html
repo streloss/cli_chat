@@ -94,12 +94,21 @@ onlineEl.onclick = function(){
 
 messagesRef.limitToLast(100).on('child_added', function(s){
   var m = s.val();
-  var tag = '';
-  if(m.role === 'OWNER') tag = '[OWNER] ';
-  if(m.role === 'ADMIN') tag = '[ADMIN] ';
-  terminal.textContent += '[' + m.time + '] ' + tag + m.user + ': ' + m.text + '\n';
+
+  var roleClass = '';
+  if(m.role === 'OWNER') roleClass = 'owner';
+  if(m.role === 'ADMIN') roleClass = 'admin';
+
+  terminal.innerHTML +=
+    '<div>' +
+      '[' + m.time + '] ' +
+      '<span class="' + roleClass + '">' + m.user + '</span>' +
+      ': <span style="color:' + m.color + '">' + m.text + '</span>' +
+    '</div>';
+
   terminal.scrollTop = terminal.scrollHeight;
 });
+
 
 input.addEventListener('keydown', function(e){
   if(e.key !== 'Enter') return;
