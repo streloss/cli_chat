@@ -50,6 +50,12 @@ const db = firebase.database();
 
 // ===== STATE =====
 let role = localStorage.getItem('role') || 'USER';
+let nameColor = localStorage.getItem('nameColor');
+if(!nameColor){
+  const colors = ['#ff5555','#55ff55','#5555ff','#ffaa00','#00ffaa','#aa00ff','#ff00aa','#00aaff'];
+  nameColor = colors[Math.floor(Math.random()*colors.length)];
+  localStorage.setItem('nameColor', nameColor);
+}
 let username = localStorage.getItem('nick');
 if(!username){
   username = prompt('Введите ник');
@@ -57,7 +63,7 @@ if(!username){
 }
 
 // ===== REFS =====
-const messagesRef = db.ref('messages');
+
 const onlineRef = db.ref('online/' + username);
 
 // ===== UI =====
@@ -87,12 +93,7 @@ onlineEl.onclick = () => {
 };
 
 // ===== MESSAGES =====
-messagesRef.limitToLast(100).on('child_added', snap => {
-  const m = snap.val();
-  let tag = '';
-  if(m.role === 'OWNER') tag = '[OWNER] ';
-  if(m.role === 'ADMIN') tag = '[ADMIN] ';
-  terminal.innerHTML += '[' + m.time + '] ' + tag + m.user + ': ' + m.text + '\n';
+messagesRef.limitToLast(100).on('child_ + m.text + '\n';
   terminal.scrollTop = terminal.scrollHeight;
 });
 
@@ -130,8 +131,6 @@ input.addEventListener('keydown', e => {
       user: username,
       role: role,
       text: text,
-      time: new Date().toLocaleTimeString()
-    });
   });
 
   input.value='';
