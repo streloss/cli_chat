@@ -114,11 +114,18 @@ input.addEventListener('keydown', function(e){
     input.value=''; return;
   }
 
-  if(t === '/clear'){
-    if(role === 'OWNER' || role === 'ADMIN') messagesRef.remove();
-    else system('Нет прав');
-    input.value=''; return;
+if(t === '/clear'){
+  if(role === 'OWNER' || role === 'ADMIN'){
+    messagesRef.remove();
+    terminal.textContent = ''; // ← ВАЖНО
+    system('Чат очищен');
+  } else {
+    system('Нет прав');
   }
+  input.value='';
+  return;
+}
+
 
   messagesRef.push({
     user: username,
