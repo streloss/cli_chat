@@ -14,36 +14,11 @@ body{margin:0;background:#000;color:#fff;font-family:monospace}
 #top{position:fixed;top:0;left:0;width:100%;padding:6px 10px;border-bottom:1px solid #222;background:#000}
 #online{cursor:pointer;color:#0f0}
 #onlineList{display:none;font-size:13px;color:#aaa}
-#terminal{
-  padding:50px 10px 90px;
-  height:100dvh;
-  overflow-y:auto;
-  white-space:normal;
-}
+#terminal{padding:50px 10px 70px;height:100vh;overflow-y:auto;white-space:pre-wrap}
 #input{position:fixed;bottom:28px;left:0;width:100%;background:#000;color:#fff;border:none;outline:none;font-family:monospace;font-size:16px;padding:6px 10px}
 #status{position:fixed;bottom:0;left:0;width:100%;padding:6px 10px;font-size:13px;border-top:1px solid #222;color:#888}
 .owner{color:red;font-weight:bold}
 .admin{color:#ff5555}
-.system{
- color:#888;
- font-style:italic;
-}
-  #onlineBar{
-  position:fixed;
-  bottom:-200px;
-  left:0;
-  width:100%;
-  background:#111;
-  border-top:1px solid #222;
-  padding:10px;
-  font-size:14px;
-  color:#aaa;
-  transition:bottom 0.3s;
-  z-index:10;
-}
-#onlineBar.show{
-  bottom:0;
-}
 </style>
 </head>
 <body>
@@ -101,7 +76,7 @@ var onlineListEl = document.getElementById('onlineList');
 
 function system(msg){
   terminal.innerHTML +=
-    '<div class="system">[SYSTEM] ' + msg + '</div>';
+    '<div style="color:#888">[SYSTEM] ' + msg + '</div>';
   terminal.scrollTop = terminal.scrollHeight;
 }
 
@@ -177,36 +152,6 @@ if(t === '/clear'){
 db.ref('.info/connected').on('value', function(s){
   statusEl.textContent = s.val() ? 'Подключено' : 'Соединение потеряно';
 });
-  input.addEventListener('focus', function(){
-  setTimeout(function(){
-    terminal.scrollTop = terminal.scrollHeight;
-  }, 300);
-});
-
-window.addEventListener('resize', function(){
-  terminal.scrollTop = terminal.scrollHeight;
-});
-var onlineBar = document.getElementById('onlineBar');
-
-onlineEl.onclick = function(){
-  if(window.innerWidth < 700){
-    onlineBar.classList.toggle('show');
-  } else {
-    onlineListEl.style.display =
-      onlineListEl.style.display === 'block' ? 'none' : 'block';
-  }
-};
-
-db.ref('online').on('value', function(s){
-  var u = s.val() || {};
-  var list = Object.keys(u);
-
-  onlineEl.textContent = 'В сети: ' + list.length;
-  onlineListEl.textContent = list.join(', ');
-  onlineBar.textContent = 'Онлайн: ' + list.join(', ');
-});
-
 </script>
-<div id="onlineBar"></div>
 </body>
 </html>
