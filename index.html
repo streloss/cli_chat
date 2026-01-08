@@ -2,22 +2,23 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>CLI Chat v2</title>
+<title>CLI Chat Clean</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<!-- Firebase (ТОЛЬКО ОДИН РАЗ) -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <style>
 body{margin:0;background:#000;color:#fff;font-family:monospace}
-#top{position:fixed;top:0;left:0;width:100%;padding:6px 10px;border-bottom:1px solid #222;background:#000;z-index:10}
+#top{position:fixed;top:0;left:0;width:100%;padding:6px 10px;border-bottom:1px solid #222;background:#000}
 #online{cursor:pointer;color:#0f0}
 #onlineList{display:none;font-size:13px;color:#aaa}
 #terminal{padding:50px 10px 70px;height:100vh;overflow-y:auto;white-space:pre-wrap}
 #input{position:fixed;bottom:28px;left:0;width:100%;background:#000;color:#fff;border:none;outline:none;font-family:monospace;font-size:16px;padding:6px 10px}
 #status{position:fixed;bottom:0;left:0;width:100%;padding:6px 10px;font-size:13px;border-top:1px solid #222;color:#888}
-.tag-owner{color:red;font-weight:bold}
-.tag-admin{color:red}
+.owner{color:red;font-weight:bold}
+.admin{color:#ff5555}
 </style>
 </head>
 <body>
@@ -29,158 +30,11 @@ body{margin:0;background:#000;color:#fff;font-family:monospace}
 
 <div id="terminal"></div>
 <input id="input" placeholder="Введите сообщение и Enter">
-<div id="status">● Подключение...</div>
+<div id="status">Подключение...</div>
 
 <script>
-// ===== USER =====
-var username = localStorage.getItem('nick');
-if(!username){
-  username = prompt('Введите ник');
-  localStorage.setItem('nick', username);
-}
+/* ===== НАСТОЯЩИЙ ЧИСТЫЙ JS (БЕЗ ЛОВУШЕК) ===== */
 
-var role = localStorage.getItem('role') || 'USER';
-
-var nameColor = localStorage.getItem('nameColor');
-if(!nameColor){
-  var colors = ['#ff5555','#55ff55','#5555ff','#ffaa00','#00ffaa','#aa00ff','#ff00aa','#00aaff'];
-  nameColor = colors[Math.floor(Math.random()*colors.length)];
-  localStorage.setItem('nameColor', nameColor);
-}
-
-// ===== REFS =====
-var messagesRef = db.ref('messages');
-var onlineRef = db.ref('online/' + username);
-
-// ===== UI =====
-var terminal = document.getElementById('terminal');
-var input = document.getElementById('input');
-var statusEl = document.getElementById('status');
-var onlineEl = document.getElementById('online');
-var onlineListEl = document.getElementById('onlineList');
-
-function system(msg){
-  terminal.innerHTML += '[SYSTEM] ' + msg + '
-';
-}
-
-// ===== ONLINE =====
-onlineRef.set(true);
-onlineRef.onDisconnect().remove();
-
-db.ref('online').on('value', function(snap){
-  var users = snap.val() || {};
-  var list = Object.keys(users);
-  onlineEl.textContent = 'В сети: ' + list.length;
-  onlineListEl.textContent = list.join(', ');
-});
-
-onlineEl.onclick = function(){
-  onlineListEl.style.display = onlineListEl.style.display === 'block' ? 'none' : 'block';
-};
-
-// ===== MESSAGES =====
-messagesRef.limitToLast(100).on('child_added', function(snap){
-  var m = snap.val();
-  var tag = '';
-  if(m.role === 'OWNER') tag = '[OWNER] ';
-  else if(m.role === 'ADMIN') tag = '[ADMIN] ';
-
-  terminal.innerHTML += '[' + m.time + '] ' + tag + m.user + ': ' + m.text + '
-';
-  terminal.scrollTop = terminal.scrollHeight;
-});
-
-// ===== INPUT =====
-input.addEventListener('keydown', function(e){
-  if(e.key !== 'Enter') return;
-  var text = input.value.trim();
-  if(!text) return;
-
-  if(text.indexOf('/key ') === 0){
-    var p = text.split(' ');
-    if(p[2] !== PASSWORD){ system('Неверный пароль'); input.value=''; return; }
-    if(p[1] === 'owner'){ role='OWNER'; localStorage.setItem('role','OWNER'); system('Вы OWNER'); }
-    else if(p[1] === 'admin'){ role='ADMIN'; localStorage.setItem('role','ADMIN'); system('Вы ADMIN'); }
-    input.value=''; return;
-  }
-
-  if(text === '/clear'){
-    if(role === 'OWNER' || role === 'ADMIN') messagesRef.remove();
-    else system('Нет прав');
-    input.value=''; return;
-  }
-
-  if(text.indexOf('/ban ') === 0){
-    if(role !== 'OWNER'){ system('Только OWNER'); input.value=''; return; }
-    var nick = text.substring(5);
-    db.ref('bans/' + nick).set(true);
-    system('Пользователь забанен');
-    input.value=''; return;
-  }
-
-  db.ref('bans/' + username).once('value', function(s){
-    if(s.exists()){ alert('Вы забанены'); return; }
-    messagesRef.push({
-      user: username,
-      role: role,
-      text: text,
-      time: new Date().toLocaleTimeString(),
-      color: nameColor
-    });
-  });
-
-  input.value='';
-});
-
-// ===== CONNECTION =====
-db.ref('.info/connected').on('value', function(snap){
-  if(snap.val()){
-    statusEl.textContent = '● Подключено';
-    statusEl.style.color = '#0f0';
-  } else {
-    statusEl.textContent = '● Соединение потеряно';
-    statusEl.style.color = '#f00';
-  }
-});
-</script>
-</body>
-</html>
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-<meta charset="UTF-8">
-<title>CLI Chat v2</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-
-<style>
-body{margin:0;background:#000;color:#fff;font-family:monospace}
-#top{position:fixed;top:0;left:0;width:100%;padding:6px 10px;border-bottom:1px solid #222;background:#000;z-index:10}
-#online{cursor:pointer;color:#0f0}
-#onlineList{display:none;font-size:13px;color:#aaa}
-#terminal{padding:50px 10px 70px;height:100vh;overflow-y:auto;white-space:pre-wrap}
-#input{position:fixed;bottom:28px;left:0;width:100%;background:#000;color:#fff;border:none;outline:none;font-family:monospace;font-size:16px;padding:6px 10px}
-#status{position:fixed;bottom:0;left:0;width:100%;padding:6px 10px;font-size:13px;border-top:1px solid #222;color:#888}
-.tag-owner{color:red;font-weight:bold}
-.tag-admin{color:red}
-</style>
-</head>
-<body>
-
-<div id="top">
-  <span id="online">В сети: 0</span>
-  <div id="onlineList"></div>
-</div>
-
-<div id="terminal"></div>
-<input id="input" placeholder="Введите сообщение и Enter">
-<div id="status">● Подключение...</div>
-
-<script>
-// ===== BASIC CONFIG =====
 var PASSWORD = 'sayayo';
 
 var firebaseConfig = {
@@ -196,7 +50,6 @@ var firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 var db = firebase.database();
 
-// ===== USER =====
 var username = localStorage.getItem('nick');
 if(!username){
   username = prompt('Введите ник');
@@ -205,18 +58,16 @@ if(!username){
 
 var role = localStorage.getItem('role') || 'USER';
 
-var nameColor = localStorage.getItem('nameColor');
-if(!nameColor){
-  var colors = ['#ff5555','#55ff55','#5555ff','#ffaa00','#00ffaa','#aa00ff','#ff00aa','#00aaff'];
-  nameColor = colors[Math.floor(Math.random()*colors.length)];
-  localStorage.setItem('nameColor', nameColor);
+var color = localStorage.getItem('color');
+if(!color){
+  var arr = ['#ff5555','#55ff55','#5555ff','#ffaa00','#00ffaa','#aa00ff'];
+  color = arr[Math.floor(Math.random()*arr.length)];
+  localStorage.setItem('color', color);
 }
 
-// ===== REFS =====
 var messagesRef = db.ref('messages');
 var onlineRef = db.ref('online/' + username);
 
-// ===== UI =====
 var terminal = document.getElementById('terminal');
 var input = document.getElementById('input');
 var statusEl = document.getElementById('status');
@@ -224,17 +75,15 @@ var onlineEl = document.getElementById('online');
 var onlineListEl = document.getElementById('onlineList');
 
 function system(msg){
-  terminal.innerHTML += '[SYSTEM] ' + msg + '
-';
+  terminal.textContent += '[SYSTEM] ' + msg + '\n';
 }
 
-// ===== ONLINE =====
 onlineRef.set(true);
 onlineRef.onDisconnect().remove();
 
-db.ref('online').on('value', function(snap){
-  var users = snap.val() || {};
-  var list = Object.keys(users);
+db.ref('online').on('value', function(s){
+  var u = s.val() || {};
+  var list = Object.keys(u);
   onlineEl.textContent = 'В сети: ' + list.length;
   onlineListEl.textContent = list.join(', ');
 });
@@ -243,69 +92,47 @@ onlineEl.onclick = function(){
   onlineListEl.style.display = onlineListEl.style.display === 'block' ? 'none' : 'block';
 };
 
-// ===== MESSAGES =====
-messagesRef.limitToLast(100).on('child_added', function(snap){
-  var m = snap.val();
+messagesRef.limitToLast(100).on('child_added', function(s){
+  var m = s.val();
   var tag = '';
   if(m.role === 'OWNER') tag = '[OWNER] ';
-  else if(m.role === 'ADMIN') tag = '[ADMIN] ';
-
-  terminal.innerHTML += '[' + m.time + '] ' + tag + m.user + ': ' + m.text + '
-';
+  if(m.role === 'ADMIN') tag = '[ADMIN] ';
+  terminal.textContent += '[' + m.time + '] ' + tag + m.user + ': ' + m.text + '\n';
   terminal.scrollTop = terminal.scrollHeight;
 });
 
-// ===== INPUT =====
 input.addEventListener('keydown', function(e){
   if(e.key !== 'Enter') return;
-  var text = input.value.trim();
-  if(!text) return;
+  var t = input.value.trim();
+  if(!t) return;
 
-  if(text.indexOf('/key ') === 0){
-    var p = text.split(' ');
+  if(t.indexOf('/key ') === 0){
+    var p = t.split(' ');
     if(p[2] !== PASSWORD){ system('Неверный пароль'); input.value=''; return; }
     if(p[1] === 'owner'){ role='OWNER'; localStorage.setItem('role','OWNER'); system('Вы OWNER'); }
-    else if(p[1] === 'admin'){ role='ADMIN'; localStorage.setItem('role','ADMIN'); system('Вы ADMIN'); }
+    if(p[1] === 'admin'){ role='ADMIN'; localStorage.setItem('role','ADMIN'); system('Вы ADMIN'); }
     input.value=''; return;
   }
 
-  if(text === '/clear'){
+  if(t === '/clear'){
     if(role === 'OWNER' || role === 'ADMIN') messagesRef.remove();
     else system('Нет прав');
     input.value=''; return;
   }
 
-  if(text.indexOf('/ban ') === 0){
-    if(role !== 'OWNER'){ system('Только OWNER'); input.value=''; return; }
-    var nick = text.substring(5);
-    db.ref('bans/' + nick).set(true);
-    system('Пользователь забанен');
-    input.value=''; return;
-  }
-
-  db.ref('bans/' + username).once('value', function(s){
-    if(s.exists()){ alert('Вы забанены'); return; }
-    messagesRef.push({
-      user: username,
-      role: role,
-      text: text,
-      time: new Date().toLocaleTimeString(),
-      color: nameColor
-    });
+  messagesRef.push({
+    user: username,
+    role: role,
+    text: t,
+    time: new Date().toLocaleTimeString(),
+    color: color
   });
 
   input.value='';
 });
 
-// ===== CONNECTION =====
-db.ref('.info/connected').on('value', function(snap){
-  if(snap.val()){
-    statusEl.textContent = '● Подключено';
-    statusEl.style.color = '#0f0';
-  } else {
-    statusEl.textContent = '● Соединение потеряно';
-    statusEl.style.color = '#f00';
-  }
+db.ref('.info/connected').on('value', function(s){
+  statusEl.textContent = s.val() ? 'Подключено' : 'Соединение потеряно';
 });
 </script>
 </body>
