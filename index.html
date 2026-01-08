@@ -28,6 +28,22 @@ body{margin:0;background:#000;color:#fff;font-family:monospace}
  color:#888;
  font-style:italic;
 }
+  #onlineBar{
+  position:fixed;
+  bottom:-200px;
+  left:0;
+  width:100%;
+  background:#111;
+  border-top:1px solid #222;
+  padding:10px;
+  font-size:14px;
+  color:#aaa;
+  transition:bottom 0.3s;
+  z-index:10;
+}
+#onlineBar.show{
+  bottom:0;
+}
 </style>
 </head>
 <body>
@@ -170,7 +186,27 @@ db.ref('.info/connected').on('value', function(s){
 window.addEventListener('resize', function(){
   terminal.scrollTop = terminal.scrollHeight;
 });
+var onlineBar = document.getElementById('onlineBar');
+
+onlineEl.onclick = function(){
+  if(window.innerWidth < 700){
+    onlineBar.classList.toggle('show');
+  } else {
+    onlineListEl.style.display =
+      onlineListEl.style.display === 'block' ? 'none' : 'block';
+  }
+};
+
+db.ref('online').on('value', function(s){
+  var u = s.val() || {};
+  var list = Object.keys(u);
+
+  onlineEl.textContent = 'В сети: ' + list.length;
+  onlineListEl.textContent = list.join(', ');
+  onlineBar.textContent = 'Онлайн: ' + list.join(', ');
+});
 
 </script>
+<div id="onlineBar"></div>
 </body>
 </html>
