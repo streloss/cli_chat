@@ -75,7 +75,8 @@ var onlineEl = document.getElementById('online');
 var onlineListEl = document.getElementById('onlineList');
 
 function system(msg){
-  terminal.textContent += '[SYSTEM] ' + msg + '\n';
+  terminal.textContent += '[SYSTEM] ' + msg + '
+';
 }
 
 onlineRef.set(true);
@@ -97,7 +98,8 @@ messagesRef.limitToLast(100).on('child_added', function(s){
   var tag = '';
   if(m.role === 'OWNER') tag = '[OWNER] ';
   if(m.role === 'ADMIN') tag = '[ADMIN] ';
-  terminal.textContent += '[' + m.time + '] ' + tag + m.user + ': ' + m.text + '\n';
+  terminal.textContent += '[' + m.time + '] ' + tag + m.user + ': ' + m.text + '
+';
   terminal.scrollTop = terminal.scrollHeight;
 });
 
