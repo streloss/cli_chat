@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>CLI Chat Beta</title>
+<title>CLI Chat Clean</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <!-- Firebase (ТОЛЬКО ОДИН РАЗ) -->
@@ -75,7 +75,7 @@ var onlineEl = document.getElementById('online');
 var onlineListEl = document.getElementById('onlineList');
 
 function system(msg){
-  terminal.textContent += '[SYSTEM] ' + msg + '\\n';
+  terminal.textContent += '[SYSTEM] ' + msg + '\n';
 }
 
 onlineRef.set(true);
@@ -97,7 +97,11 @@ messagesRef.limitToLast(100).on('child_added', function(s){
   var tag = '';
   if(m.role === 'OWNER') tag = '[OWNER] ';
   if(m.role === 'ADMIN') tag = '[ADMIN] ';
- eydown', function(e){
+  terminal.textContent += '[' + m.time + '] ' + tag + m.user + ': ' + m.text + '\n';
+  terminal.scrollTop = terminal.scrollHeight;
+});
+
+input.addEventListener('keydown', function(e){
   if(e.key !== 'Enter') return;
   var t = input.value.trim();
   if(!t) return;
