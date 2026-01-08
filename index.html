@@ -31,6 +31,10 @@ body{margin:0;background:#000;color:#fff;font-family:monospace}
 <div id="terminal"></div>
 <input id="input" placeholder="Введите сообщение и Enter">
 <div id="status">Подключение...</div>
+  <div id="typing" style="font-size:13px;color:#aaa;padding:4px 10px;display:none">
+  ✍️ кто-то печатает…
+</div>
+
 
 <script>
 /* ===== НАСТОЯЩИЙ ЧИСТЫЙ JS (БЕЗ ЛОВУШЕК) ===== */
@@ -39,6 +43,19 @@ return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
   ? '📱 Mobile'
   : '🖥️ PC';
 }
+  
+  typingRef.on('value', function(s){
+  var users = s.val() || {};
+  var list = Object.keys(users).filter(u => u !== username);
+
+  if(list.length){
+    typingEl.style.display = 'block';
+    typingEl.textContent = '✍️ Печатает: ' + list.join(', ');
+  } else {
+    typingEl.style.display = 'none';
+  }
+});
+
 
 var PASSWORD = 'sayayo';
 
@@ -73,6 +90,9 @@ if(!color){
 var messagesRef = db.ref('messages');
 var onlineRef = db.ref('online/' + username);
 var device = getDevice();
+var typingRef = db.ref('typing');
+var typingUserRef = db.ref('typing/' + username);
+var typingEl = document.getElementById('typing');
 
 onlineRef.set({
   device: device,
@@ -131,6 +151,8 @@ messagesRef.limitToLast(100).on('child_added', function(s){
 
 
 input.addEventListener('keydown', function(e){
+typingUserRef.set(true);
+typingUserRef.onDisconnect().remove();
   if(e.key !== 'Enter') return;
   var t = input.value.trim();
   if(!t) return;
@@ -141,6 +163,7 @@ input.addEventListener('keydown', function(e){
     if(p[1] === 'owner'){ role='OWNER'; localStorage.setItem('role','OWNER'); system('Вы OWNER'); }
     if(p[1] === 'admin'){ role='ADMIN'; localStorage.setItem('role','ADMIN'); system('Вы ADMIN'); }
     input.value=''; return;
+    typingUserRef.remove();
   }
 
 if(t === '/clear'){
