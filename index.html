@@ -34,6 +34,11 @@ body{margin:0;background:#000;color:#fff;font-family:monospace}
 
 <script>
 /* ===== НАСТОЯЩИЙ ЧИСТЫЙ JS (БЕЗ ЛОВУШЕК) ===== */
+function getDevice(){
+return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  ? '📱 Mobile'
+  : '🖥️ PC';
+}
 
 var PASSWORD = 'sayayo';
 
@@ -67,6 +72,14 @@ if(!color){
 
 var messagesRef = db.ref('messages');
 var onlineRef = db.ref('online/' + username);
+var device = getDevice();
+
+onlineRef.set({
+  device: device,
+  time: Date.now()
+});
+
+onlineRef.onDisconnect().remove();
 
 var terminal = document.getElementById('terminal');
 var input = document.getElementById('input');
@@ -84,10 +97,15 @@ onlineRef.set(true);
 onlineRef.onDisconnect().remove();
 
 db.ref('online').on('value', function(s){
-  var u = s.val() || {};
-  var list = Object.keys(u);
+  var users = s.val() || {};
+  var list = [];
+
+  for(var u in users){
+    list.push(u + ' ' + users[u].device);
+  }
+
   onlineEl.textContent = 'В сети: ' + list.length;
-  onlineListEl.textContent = list.join(', ');
+  onlineListEl.innerHTML = list.join('<br>');
 });
 
 onlineEl.onclick = function(){
@@ -150,7 +168,13 @@ if(t === '/clear'){
 });
 
 db.ref('.info/connected').on('value', function(s){
-  statusEl.textContent = s.val() ? 'Подключено' : 'Соединение потеряно';
+  if(s.val()){
+    statusEl.innerHTML = '<span style="color:#0f0">● Онлайн</span>';
+  } else {
+    statusEl.innerHTML = '<span style="color:#f00">● Оффлайн</span>';
+  }
+});
+
 });
 </script>
 </body>
