@@ -32,22 +32,6 @@ body{margin:0;background:#000;color:#fff;font-family:monospace}
 <div id="status">● Подключение...</div>
 
 <script>
-// ===== BASIC CONFIG =====
-var PASSWORD = 'sayayo';
-
-var firebaseConfig = {
-  apiKey: "AIzaSyBzPbPhYS7dDfhDwaqYLAHpIV6QBN53EV0",
-  authDomain: "project-7979939474542798395.firebaseapp.com",
-  databaseURL: "https://project-7979939474542798395-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "project-7979939474542798395",
-  storageBucket: "project-7979939474542798395.firebasestorage.app",
-  messagingSenderId: "64773662070",
-  appId: "1:64773662070:web:59a5ade363119a1b61c657"
-};
-
-firebase.initializeApp(firebaseConfig);
-var db = firebase.database();
-
 // ===== USER =====
 var username = localStorage.getItem('nick');
 if(!username){
