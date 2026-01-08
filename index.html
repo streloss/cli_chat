@@ -14,11 +14,20 @@ body{margin:0;background:#000;color:#fff;font-family:monospace}
 #top{position:fixed;top:0;left:0;width:100%;padding:6px 10px;border-bottom:1px solid #222;background:#000}
 #online{cursor:pointer;color:#0f0}
 #onlineList{display:none;font-size:13px;color:#aaa}
-#terminal{padding:50px 10px 70px;height:100vh;overflow-y:auto;white-space:pre-wrap}
+#terminal{
+  padding:50px 10px 90px;
+  height:100dvh;
+  overflow-y:auto;
+  white-space:normal;
+}
 #input{position:fixed;bottom:28px;left:0;width:100%;background:#000;color:#fff;border:none;outline:none;font-family:monospace;font-size:16px;padding:6px 10px}
 #status{position:fixed;bottom:0;left:0;width:100%;padding:6px 10px;font-size:13px;border-top:1px solid #222;color:#888}
 .owner{color:red;font-weight:bold}
 .admin{color:#ff5555}
+.system{
+ color:#888;
+ font-style:italic;
+}
 </style>
 </head>
 <body>
@@ -76,7 +85,7 @@ var onlineListEl = document.getElementById('onlineList');
 
 function system(msg){
   terminal.innerHTML +=
-    '<div style="color:#888">[SYSTEM] ' + msg + '</div>';
+    '<div class="system">[SYSTEM] ' + msg + '</div>';
   terminal.scrollTop = terminal.scrollHeight;
 }
 
@@ -152,6 +161,16 @@ if(t === '/clear'){
 db.ref('.info/connected').on('value', function(s){
   statusEl.textContent = s.val() ? 'Подключено' : 'Соединение потеряно';
 });
+  input.addEventListener('focus', function(){
+  setTimeout(function(){
+    terminal.scrollTop = terminal.scrollHeight;
+  }, 300);
+});
+
+window.addEventListener('resize', function(){
+  terminal.scrollTop = terminal.scrollHeight;
+});
+
 </script>
 </body>
 </html>
