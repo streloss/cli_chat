@@ -14,7 +14,7 @@ body{margin:0;background:#000;color:#fff;font-family:monospace;line-height:1.4}
 #terminal{padding:60px 12px 120px;height:100vh;overflow-y:auto;white-space:pre-wrap}
 #input{position:fixed;bottom:28px;left:0;width:100%;background:#000;color:#fff;border:none;outline:none;font-size:16px;padding:8px 12px;box-sizing:border-box}
 #status{position:fixed;bottom:0;left:0;width:100%;padding:6px 12px;font-size:13px;border-top:1px solid #222;color:#888}
-.creator-tag{color:#ff5555;font-size:11px;margin-left:4px;vertical-align:super}
+.creator-tag{color:#ff5555;font-size:11px;margin-right:5px;vertical-align:super}
 .admin-nick{color:#ffaaaa;font-weight:bold}
 .owner-nick{color:#ff4444;font-weight:bold}
 </style>
@@ -28,11 +28,13 @@ body{margin:0;background:#000;color:#fff;font-family:monospace;line-height:1.4}
 <div id="typing" style="font-size:13px;color:#777;padding:4px 12px;display:none;position:fixed;bottom:60px;left:0;width:100%">✍️ кто-то печатает…</div>
 
 <script>
-window.addEventListener('load',()=>{if(typeof firebase==='undefined')return;
+window.addEventListener('load',()=>{
+if(typeof firebase==='undefined'){document.getElementById('status').innerHTML='<span style="color:#f44">Firebase не загрузился</span>';return;}
+
 const c={apiKey:"AIzaSyBzPbPhYS7dDfhDwaqYLAHpIV6QBN53EV0",authDomain:"project-7979939474542798395.firebaseapp.com",databaseURL:"https://project-7979939474542798395-default-rtdb.europe-west1.firebasedatabase.app",projectId:"project-7979939474542798395",storageBucket:"project-7979939474542798395.firebasestorage.app",messagingSenderId:"64773662070",appId:"1:64773662070:web:59a5ade363119a1b61c657"};
 firebase.initializeApp(c);const db=firebase.database();
 
-const getDevice=()=>{const ua=navigator.userAgent.toLowerCase();let os='Desktop',ic='🖥️';if(navigator.userAgentData?.platform){const p=navigator.userAgentData.platform.toLowerCase();if(p==='windows')os='Windows',ic='🪟';else if(p==='macos')os='macOS',ic='🍎';else if(p==='linux')os='Linux',ic='🐧';else if(p==='android')os='Android',ic='🤖';else if(p==='ios')os='iOS',ic='🍏'}else{if(ua.includes('windows'))os='Windows',ic='🪟';else if(ua.includes('mac'))os='macOS',ic='🍎';else if(ua.includes('linux'))os='Linux',ic='🐧';else if(ua.includes('android'))os='Android',ic='🤖';else if(/iphone|ipad|ipod/.test(ua))os='iOS',ic='🍏'};return ic+' '+os};
+const getDevice=()=>{const ua=navigator.userAgent.toLowerCase();let os='Desktop',ic='🖥️';if(navigator.userAgentData?.platform){const p=navigator.userAgentData.platform.toLowerCase();if(p==='windows')os='Windows',ic='🪟';else if(p==='macos')os='macOS',ic='🍎';else if(p==='linux')os='Linux',ic='🐧';else if(p==='android')os='Android',ic='🤖';else if(p==='ios')os='iOS',ic='🍏'}else{if(ua.includes('windows'))os='Windows',ic='🪟';else if(ua.includes('mac'))os='macOS',ic='🍎';else if(ua.includes('linux'))os='Linux',ic='🐧';else if(ua.includes('android'))os='Android',ic='🤖';else if(/iphone|ipad|ipod/.test(ua))os='iOS',ic='🍏'}return ic+' '+os};
 
 const pw='sayayo';
 let user=localStorage.getItem('nick')||prompt('Ник');localStorage.setItem('nick',user);
@@ -46,16 +48,17 @@ onlineRef.set({device:dev,time:Date.now()});onlineRef.onDisconnect().remove();
 
 const term=document.getElementById('terminal'),inp=document.getElementById('input'),stat=document.getElementById('status'),onl=document.getElementById('online'),onlL=document.getElementById('onlineList');
 
-db.ref('online').on('value',s=>{const u=s.val()||{};let c=0,l=[];for(let k in u){if(u[k]?.device){l.push(k+' <span style="color:#0c0">'+u[k].device+'</span>');c++}}onl.textContent='В сети: '+c;onlL.innerHTML=l.length?l.join('<br>'):'(пусто)'});
+db.ref('online').on('value',s=>{const u=s.val()||{};let c=0,l=[];for(let k in u)if(u[k]?.device){l.push(k+' <span style="color:#0c0">'+u[k].device+'</span>');c++}onl.textContent='В сети: '+c;onlL.innerHTML=l.length?l.join('<br>'):'(пусто)'});
 onl.onclick=()=>onlL.style.display=onlL.style.display==='block'?'none':'block';
 
 msgRef.limitToLast(100).on('child_added',s=>{
   const m=s.val();if(!m?.user||!m?.text)return;
   let n=m.user,cls='';
-  if(m.role==='OWNER')cls='owner-nick',n+='<span class="creator-tag">[создатель]</span>';
-  else if(m.role==='ADMIN')cls='admin-nick';
+  let tag='';
+  if(m.role==='OWNER'){cls='owner-nick';tag='<span class="creator-tag">[создатель]</span> '}
+  else if(m.role==='ADMIN'){cls='admin-nick';}
   const txt=String(m.text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  term.innerHTML+=`<div><span style="color:#555">[${m.time||'--:--'}]&nbsp;</span><span class="${cls}">${n}</span><span style="color:#888">&nbsp;:&nbsp;</span><span style="color:${m.color||'#fff'}">${txt}</span></div>`;
+  term.innerHTML+=`<div><span style="color:#555">[${m.time||'--:--'}] </span>${tag}<span class="${cls}">${n}</span><span style="color:#888"> : </span><span style="color:${m.color||'#fff'}">${txt}</span></div>`;
   term.scrollTop=term.scrollHeight;
 });
 
