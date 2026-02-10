@@ -1,55 +1,5 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-<meta charset="UTF-8">
-<title>CLI Chat ALPHA</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-<style>
-body {
-  margin:0; background:#000; color:#fff; font-family:monospace; line-height:1.4;
-}
-#top {
-  position:fixed; top:0; left:0; width:100%; padding:8px 12px; border-bottom:1px solid #222; background:#000; z-index:10;
-}
-#online { cursor:pointer; color:#0f0; }
-#onlineList { display:none; font-size:13px; color:#aaa; padding-top:6px; }
-#terminal {
-  padding:60px 12px 110px; height:100vh; overflow-y:auto; white-space:pre-wrap; word-wrap:break-word;
-}
-#input {
-  position:fixed; bottom:28px; left:0; width:100%; background:#000; color:#fff; border:none; outline:none;
-  font-family:monospace; font-size:16px; padding:8px 12px; box-sizing:border-box;
-}
-#status {
-  position:fixed; bottom:0; left:0; width:100%; padding:6px 12px; font-size:13px; border-top:1px solid #222; color:#888; box-sizing:border-box;
-}
-.creator-tag {
-  color:#ff5555; font-size:11px; margin-left:5px; vertical-align:super;
-}
-.admin-nick { color:#ffaaaa; font-weight:bold; }
-.owner-nick { color:#ff4444; font-weight:bold; }
-</style>
-</head>
-<body>
-
-<div id="top">
-  <span id="online">В сети: 0</span>
-  <div id="onlineList"></div>
-</div>
-
-<div id="terminal"></div>
-
-<input id="input" placeholder="Сообщение → Enter">
-
-<div id="status">Подключение...</div>
-<div id="typing" style="font-size:13px; color:#777; padding:4px 12px; display:none; position:fixed; bottom:60px; left:0; width:100%;">
-  ✍️ кто-то печатает…
-</div>
-
 <script>
-// Определение ОС + устройства
+// Определение ОС + устройства (оставляем как было)
 function getDeviceInfo() {
   const ua = navigator.userAgent.toLowerCase();
   let os = 'Unknown', icon = '🖥️', type = 'Desktop';
@@ -86,7 +36,7 @@ function getDeviceInfo() {
 }
 
 const PASSWORD = 'sayayo';
-const firebaseConfig = { /* твоя конфигурация firebase без изменений */ 
+const firebaseConfig = {
   apiKey: "AIzaSyBzPbPhYS7dDfhDwaqYLAHpIV6QBN53EV0",
   authDomain: "project-7979939474542798395.firebaseapp.com",
   databaseURL: "https://project-7979939474542798395-default-rtdb.europe-west1.firebasedatabase.app",
@@ -99,28 +49,35 @@ const firebaseConfig = { /* твоя конфигурация firebase без и
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-let username = localStorage.getItem('nick') || prompt('Введите ник');
-localStorage.setItem('nick', username);
+let username = localStorage.getItem('nick');
+if (!username) {
+  username = prompt('Введите ник');
+  localStorage.setItem('nick', username);
+}
 
 let role = localStorage.getItem('role') || 'USER';
-let color = localStorage.getItem('color') || (['#ff5555','#55ff55','#88aaff','#ffaa55','#55ffcc','#cc55ff','#ff88cc','#88ffff'][Math.floor(Math.random()*8)]);
-localStorage.setItem('color', color);
+let color = localStorage.getItem('color');
+if (!color) {
+  const arr = ['#ff5555','#55ff55','#88aaff','#ffaa55','#55ffcc','#cc55ff','#ff88cc','#88ffff'];
+  color = arr[Math.floor(Math.random()*arr.length)];
+  localStorage.setItem('color', color);
+}
 
 const messagesRef = db.ref('messages');
-const onlineRef = db.ref('online/' + username);
-const device = getDeviceInfo();
+const onlineRef   = db.ref('online/' + username);
+const device      = getDeviceInfo();
 
-const typingRef = db.ref('typing');
+const typingRef     = db.ref('typing');
 const typingUserRef = db.ref('typing/' + username);
-const typingEl = document.getElementById('typing');
+const typingEl      = document.getElementById('typing');
 
 onlineRef.set({ device, time: Date.now() });
 onlineRef.onDisconnect().remove();
 
-const terminal = document.getElementById('terminal');
-const input = document.getElementById('input');
-const statusEl = document.getElementById('status');
-const onlineEl = document.getElementById('online');
+const terminal     = document.getElementById('terminal');
+const input        = document.getElementById('input');
+const statusEl     = document.getElementById('status');
+const onlineEl     = document.getElementById('online');
 const onlineListEl = document.getElementById('onlineList');
 
 function system(msg) {
@@ -130,9 +87,10 @@ function system(msg) {
 
 db.ref('online').on('value', snap => {
   const users = snap.val() || {};
-  let count = 0, list = [];
+  const list = [];
+  let count = 0;
   for (const u in users) {
-    if (users[u]?.device) {
+    if (users[u] && users[u].device) {
       list.push(`${u} <span style="color:#0c0">${users[u].device}</span>`);
       count++;
     }
@@ -145,30 +103,34 @@ onlineEl.onclick = () => {
   onlineListEl.style.display = onlineListEl.style.display === 'block' ? 'none' : 'block';
 };
 
+// САМАЯ ВАЖНАЯ ЧАСТЬ — вывод сообщений (исправлено)
 messagesRef.limitToLast(100).on('child_added', snap => {
-  const m = snap.val() || {};
-  if (!m.user || !m.text) return; // пропускаем битые записи
+  const m = snap.val();
+  if (!m || !m.user || !m.text) return; // пропускаем повреждённые записи
 
-  let nickClass = 'user-nick'; // обычный пользователь
-  let tag = '';
+  let nickHTML = m.user;
+  let nickStyle = `color: ${m.color || '#ffffff'};`;
 
   if (m.role === 'OWNER') {
-    nickClass = 'owner-nick';
-    tag = '<span class="creator-tag">[создатель]</span>';
+    nickStyle = 'color: #ff4444; font-weight: bold;';
+    nickHTML += '<span class="creator-tag">[создатель]</span>';
   } else if (m.role === 'ADMIN') {
-    nickClass = 'admin-nick';
-    // tag = '<span class="creator-tag">[админ]</span>'; // если хочешь — включи
+    nickStyle = 'color: #ffaaaa; font-weight: bold;';
+    // если хочешь тег для админа → раскомментируй:
+    // nickHTML += '<span class="creator-tag">[админ]</span>';
   }
 
-  const time = m.time || '--:--';
-  const userPart = `<span class="${nickClass}">${m.user}${tag}</span>`;
-  const textPart = m.text.replace(/</g, '&lt;').replace(/>/g, '&gt;'); // базовая защита от html
+  const safeText = m.text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 
   terminal.innerHTML += `
     <div>
-      <span style="color:#555">[${time}]</span> 
-      ${userPart} :
-      <span style="color:${m.color || '#ffffff'}">${textPart}</span>
+      <span style="color:#555">[${m.time || '--:--'}]</span>
+      <span style="${nickStyle}">${nickHTML}</span>
+      <span style="color:#888">:</span>
+      <span style="color:${m.color || '#ffffff'}">${safeText}</span>
     </div>`;
 
   terminal.scrollTop = terminal.scrollHeight;
@@ -176,59 +138,72 @@ messagesRef.limitToLast(100).on('child_added', snap => {
 
 input.addEventListener('keydown', e => {
   if (e.key === 'Enter') {
-    const text = input.value.trim();
-    if (!text) return;
+    const t = input.value.trim();
+    if (!t) return;
 
     typingUserRef.remove();
 
-    if (text.startsWith('/key ')) {
-      const [, r, pass] = text.split(' ');
-      if (pass !== PASSWORD) {
+    if (t.startsWith('/key ')) {
+      const parts = t.split(' ');
+      if (parts.length < 3 || parts[2] !== PASSWORD) {
         system('Неверный пароль');
-      } else if (r === 'owner') {
+        input.value = '';
+        return;
+      }
+      const newRole = parts[1].toLowerCase();
+      if (newRole === 'owner') {
         role = 'OWNER';
         localStorage.setItem('role', 'OWNER');
-        system('Вы OWNER');
-      } else if (r === 'admin') {
+        system('Вы теперь OWNER (создатель)');
+      } else if (newRole === 'admin') {
         role = 'ADMIN';
         localStorage.setItem('role', 'ADMIN');
-        system('Вы ADMIN');
+        system('Вы теперь ADMIN');
       }
       input.value = '';
       return;
     }
 
-    if (text === '/clear' && (role === 'OWNER' || role === 'ADMIN')) {
-      messagesRef.remove();
-      terminal.innerHTML = '';
-      system('Чат очищен');
+    if (t === '/clear') {
+      if (role === 'OWNER' || role === 'ADMIN') {
+        messagesRef.remove();
+        terminal.innerHTML = '';
+        system('Чат очищен');
+      } else {
+        system('Нет прав');
+      }
       input.value = '';
       return;
     }
 
     messagesRef.push({
       user: username,
-      role,
-      text,
-      time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}),
-      color
+      role: role,
+      text: t,
+      time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+      color: color
     });
     input.value = '';
-  } else if (e.key.length === 1 || ['Backspace','Delete'].includes(e.key)) {
+  } else if (e.key !== 'Shift' && e.key !== 'Alt' && e.key !== 'Control' && e.key !== 'Meta') {
     typingUserRef.set(true);
     typingUserRef.onDisconnect().remove();
   }
 });
 
 db.ref('.info/connected').on('value', snap => {
-  statusEl.innerHTML = snap.val() ? '<span style="color:#0f0">● Онлайн</span>' : '<span style="color:#f44">● Оффлайн</span>';
+  statusEl.innerHTML = snap.val()
+    ? '<span style="color:#0f0">● Онлайн</span>'
+    : '<span style="color:#f44">● Оффлайн</span>';
 });
 
 typingRef.on('value', snap => {
-  const others = Object.keys(snap.val() || {}).filter(u => u !== username);
-  typingEl.textContent = others.length ? `✍️ Печатает: ${others.join(', ')}` : '';
-  typingEl.style.display = others.length ? 'block' : 'none';
+  const users = snap.val() || {};
+  const others = Object.keys(users).filter(u => u !== username);
+  if (others.length) {
+    typingEl.style.display = 'block';
+    typingEl.textContent = '✍️ Печатает: ' + others.join(', ');
+  } else {
+    typingEl.style.display = 'none';
+  }
 });
 </script>
-</body>
-</html>
