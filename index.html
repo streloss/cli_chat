@@ -8,106 +8,28 @@
 <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
 * { box-sizing:border-box; margin:0; padding:0; }
-body {
-  background:#0a0a0a;
-  color:#e0e0e0;
-  font-family:monospace;
-  height:100vh;
-  overflow:hidden;
-}
-#top-bar {
-  position:fixed;
-  top:0; left:0; right:0;
-  height:48px;
-  background:#111;
-  border-bottom:1px solid #222;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:0 16px;
-  z-index:20;
-}
+body { background:#0a0a0a; color:#e0e0e0; font-family:monospace; height:100vh; overflow:hidden; }
+#top-bar { position:fixed; top:0; left:0; right:0; height:48px; background:#111; border-bottom:1px solid #222; display:flex; align-items:center; justify-content:space-between; padding:0 16px; z-index:20; }
 #menu-btn { cursor:pointer; font-size:22px; color:#0af; }
 #title { font-size:16px; font-weight:bold; }
 #lobby-icon { cursor:pointer; font-size:20px; color:#0f0; }
-
-#sidebar {
-  position:fixed;
-  left:0; top:48px; bottom:0;
-  width:260px;
-  background:#111;
-  border-right:1px solid #222;
-  padding:20px;
-  transform:translateX(-100%);
-  transition:transform 0.3s ease;
-  z-index:15;
-}
+#sidebar { position:fixed; left:0; top:48px; bottom:0; width:260px; background:#111; border-right:1px solid #222; padding:20px; transform:translateX(-100%); transition:transform 0.3s ease; z-index:15; }
 #sidebar.open { transform:translateX(0); }
-.sidebar-title {
-  font-size:15px;
-  color:#aaa;
-  margin-bottom:12px;
-}
-#friends-list { font-size:14px; line-height:1.6; }
-
-#terminal {
-  padding:56px 16px 100px;
-  height:100vh;
-  overflow-y:auto;
-  background:#0a0a0a;
-}
-.message {
-  margin:10px 0;
-  white-space:pre-wrap;
-  word-break:break-word;
-}
+.sidebar-title { font-size:15px; color:#aaa; margin-bottom:12px; }
+#friends-list, #rooms-list { font-size:14px; line-height:1.6; }
+.friend, .room { margin:6px 0; cursor:pointer; }
+#friends-input, #room-password { width:100%; background:#1a1a1a; color:#fff; border:1px solid #333; border-radius:4px; padding:8px; margin-top:8px; }
+#add-friend-btn, #create-room-btn { background:#0af; color:#0a0a0a; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; margin-top:8px; }
+#terminal { padding:56px 16px 100px; height:100vh; overflow-y:auto; background:#0a0a0a; }
+.message { margin:10px 0; white-space:pre-wrap; word-break:break-word; }
 .time { color:#555; margin-right:6px; }
-.creator-tag { 
-  color:#ff6666; 
-  font-size:14px; 
-  font-weight:bold; 
-  margin-right:6px; 
-}
+.creator-tag { color:#ff6666; font-size:14px; font-weight:bold; margin-right:6px; }
 .nick { font-weight:bold; margin-right:4px; }
 .separator { color:#555; margin:0 4px; }
-
-#input-area {
-  position:fixed;
-  bottom:36px; left:0; right:0;
-  padding:12px 16px;
-  background:#0a0a0a;
-  border-top:1px solid #222;
-}
-#input {
-  width:100%;
-  background:#1a1a1a;
-  color:#fff;
-  border:1px solid #333;
-  border-radius:8px;
-  padding:12px 16px;
-  font-size:16px;
-  outline:none;
-}
-#status {
-  position:fixed;
-  bottom:0; left:0; right:0;
-  height:36px;
-  background:#111;
-  color:#888;
-  font-size:13px;
-  display:flex;
-  align-items:center;
-  padding:0 16px;
-  border-top:1px solid #222;
-}
-#typing {
-  position:fixed;
-  bottom:76px;
-  left:16px;
-  color:#777;
-  font-size:13px;
-  display:none;
-}
+#input-area { position:fixed; bottom:36px; left:0; right:0; padding:12px 16px; background:#0a0a0a; border-top:1px solid #222; }
+#input { width:100%; background:#1a1a1a; color:#fff; border:1px solid #333; border-radius:8px; padding:12px 16px; font-size:16px; outline:none; }
+#status { position:fixed; bottom:0; left:0; right:0; height:36px; background:#111; color:#888; font-size:13px; display:flex; align-items:center; padding:0 16px; border-top:1px solid #222; }
+#typing { position:fixed; bottom:76px; left:16px; color:#777; font-size:13px; display:none; }
 </style>
 </head>
 <body>
@@ -120,9 +42,13 @@ body {
 
 <div id="sidebar">
   <div class="sidebar-title">Друзья</div>
-  <div id="friends-list">(пока пусто)</div>
+  <div id="friends-list"></div>
+  <input id="friends-input" placeholder="Добавить друга (ник)">
+  <button id="add-friend-btn">Добавить</button>
   <div class="sidebar-title" style="margin-top:32px">Лобби</div>
-  <div>Приватные комнаты (скоро)</div>
+  <div id="rooms-list"></div>
+  <input id="room-password" placeholder="Пароль для комнаты">
+  <button id="create-room-btn">Создать комнату</button>
 </div>
 
 <div id="terminal"></div>
@@ -155,13 +81,10 @@ window.addEventListener('load', () => {
   let role = localStorage.getItem('role') || 'USER';
   const PASSWORD = 'sayayo';
 
-  const messagesRef = db.ref('messages');
-  const onlineRef = db.ref('online/' + username);
+  const friendsRef = db.ref('friends/' + username);
+  const roomsRef = db.ref('rooms');
   const typingRef = db.ref('typing');
   const typingUserRef = db.ref('typing/' + username);
-
-  onlineRef.set({device: getDevice(), time: Date.now()});
-  onlineRef.onDisconnect().remove();
 
   const terminal = document.getElementById('terminal');
   const input = document.getElementById('input');
@@ -169,9 +92,22 @@ window.addEventListener('load', () => {
   const typingEl = document.getElementById('typing');
   const sidebar = document.getElementById('sidebar');
   const menuBtn = document.getElementById('menu-btn');
+  const friendsList = document.getElementById('friends-list');
+  const roomsList = document.getElementById('rooms-list');
+  const friendsInput = document.getElementById('friends-input');
+  const addFriendBtn = document.getElementById('add-friend-btn');
+  const roomPassword = document.getElementById('room-password');
+  const createRoomBtn = document.getElementById('create-room-btn');
 
-  function getDevice() {
-    return navigator.userAgent.includes('Mobile') ? '📱' : '🖥️';
+  let currentRoomId = null;
+  let messagesRef = db.ref('messages');
+
+  // Парсинг URL для комнаты
+  const params = new URLSearchParams(window.location.search);
+  currentRoomId = params.get('room');
+  const roomPassword = params.get('password');
+  if (currentRoomId) {
+    messagesRef = db.ref('rooms/' + currentRoomId + '/messages');
   }
 
   function system(msg) {
@@ -179,7 +115,14 @@ window.addEventListener('load', () => {
     terminal.scrollTop = terminal.scrollHeight;
   }
 
-  // Сообщения — белый текст, тег слева, без дублирования
+  // Онлайн
+  db.ref('online').on('value', snap => {
+    const users = snap.val() || {};
+    let count = Object.keys(users).length;
+    document.getElementById('online').textContent = `В сети: ${count}`;
+  });
+
+  // Сообщения
   messagesRef.limitToLast(100).on('child_added', snap => {
     const m = snap.val();
     if (!m?.user || !m?.text) return;
@@ -240,11 +183,12 @@ window.addEventListener('load', () => {
     }
   });
 
-  // Статус и typing
+  // Статус
   db.ref('.info/connected').on('value', s => {
     statusEl.innerHTML = s.val() ? '<span style="color:#0f0">● Онлайн</span>' : '<span style="color:#f44">● Оффлайн</span>';
   });
 
+  // Typing
   typingRef.on('value', s => {
     const others = Object.keys(s.val() || {}).filter(u => u !== username);
     typingEl.style.display = others.length ? 'block' : 'none';
@@ -253,6 +197,54 @@ window.addEventListener('load', () => {
 
   // Боковая панель
   menuBtn.onclick = () => sidebar.classList.toggle('open');
+
+  // Система друзей
+  let friends = [];
+  friendsRef.on('value', snap => {
+    friends = snap.val() || [];
+    friendsList.innerHTML = friends.map(f => `<div class="friend">${f}</div>`).join('');
+  });
+
+  addFriendBtn.onclick = () => {
+    const friend = friendsInput.value.trim();
+    if (friend && !friends.includes(friend)) {
+      friends.push(friend);
+      friendsRef.set(friends);
+      system(`Добавлен друг: ${friend}`);
+      friendsInput.value = '';
+    }
+  };
+
+  // Система лобби
+  let rooms = [];
+  roomsRef.on('value', snap => {
+    rooms = [];
+    snap.forEach(child => {
+      rooms.push({id: child.key, data: child.val()});
+    });
+    roomsList.innerHTML = rooms.map(r => `<div class="room" onclick="joinRoom('${r.id}', prompt('Пароль?'))">${r.data.name}</div>`).join('');
+  });
+
+  createRoomBtn.onclick = () => {
+    const password = roomPassword.value.trim();
+    if (password) {
+      const roomId = roomsRef.push({author: username, password, name: 'Комната ' + username}).key;
+      system(`Создана комната. ID: ${roomId}, Пароль: ${password}`);
+      window.location.href = `?room=${roomId}&password=${password}`;
+      roomPassword.value = '';
+    }
+  };
+
+  function joinRoom(id, pass) {
+    roomsRef.child(id).once('value', snap => {
+      const room = snap.val();
+      if (room && room.password === pass) {
+        window.location.href = `?room=${id}&password=${pass}`;
+      } else {
+        system('Неверный пароль');
+      }
+    });
+  }
 });
 </script>
 </body>
