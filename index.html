@@ -7,111 +7,106 @@
 <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
-* { box-sizing: border-box; margin:0; padding:0; }
+* { box-sizing:border-box; margin:0; padding:0; }
 body {
-  background: #0a0a0a;
-  color: #e0e0e0;
-  font-family: monospace;
-  height: 100vh;
-  overflow: hidden;
+  background:#0a0a0a;
+  color:#e0e0e0;
+  font-family:monospace;
+  height:100vh;
+  overflow:hidden;
 }
 #top-bar {
-  position: fixed;
-  top: 0; left: 0; right: 0;
-  height: 48px;
-  background: #111;
-  border-bottom: 1px solid #222;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
-  z-index: 20;
+  position:fixed;
+  top:0; left:0; right:0;
+  height:48px;
+  background:#111;
+  border-bottom:1px solid #222;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 16px;
+  z-index:20;
 }
-#menu-btn { cursor: pointer; font-size: 20px; color: #0af; }
-#title { font-size: 16px; font-weight: bold; }
-#lobby-icon { cursor: pointer; font-size: 20px; color: #0f0; }
+#menu-btn { cursor:pointer; font-size:22px; color:#0af; }
+#title { font-size:16px; font-weight:bold; }
+#lobby-icon { cursor:pointer; font-size:20px; color:#0f0; }
 
 #sidebar {
-  position: fixed;
-  left: 0; top: 48px; bottom: 0;
-  width: 260px;
-  background: #111;
-  border-right: 1px solid #222;
-  padding: 20px;
-  transform: translateX(-100%);
-  transition: transform 0.3s ease;
-  z-index: 15;
-  overflow-y: auto;
+  position:fixed;
+  left:0; top:48px; bottom:0;
+  width:260px;
+  background:#111;
+  border-right:1px solid #222;
+  padding:20px;
+  transform:translateX(-100%);
+  transition:transform 0.3s ease;
+  z-index:15;
 }
-#sidebar.open { transform: translateX(0); }
+#sidebar.open { transform:translateX(0); }
 .sidebar-title {
-  font-size: 15px;
-  color: #aaa;
-  margin-bottom: 12px;
+  font-size:15px;
+  color:#aaa;
+  margin-bottom:12px;
 }
-#friends-list {
-  font-size: 14px;
-  line-height: 1.6;
-}
-.friend { margin: 6px 0; }
+#friends-list { font-size:14px; line-height:1.6; }
 
 #terminal {
-  padding: 56px 16px 110px;
-  height: 100vh;
-  overflow-y: auto;
-  background: #0a0a0a;
+  padding:56px 16px 100px;
+  height:100vh;
+  overflow-y:auto;
+  background:#0a0a0a;
 }
 .message {
-  margin: 10px 0;
-  white-space: pre-wrap;
-  word-break: break-word;
+  margin:10px 0;
+  white-space:pre-wrap;
+  word-break:break-word;
 }
-.time { color: #555; margin-right: 6px; }
+.time { color:#555; margin-right:6px; }
 .creator-tag { 
-  color: #ff6666; 
-  font-size: 14px; 
-  font-weight: bold; 
-  margin-right: 6px; 
+  color:#ff6666; 
+  font-size:14px; 
+  font-weight:bold; 
+  margin-right:6px; 
 }
-.nick { font-weight: bold; margin-right: 4px; }
-.separator { color: #555; }
+.nick { font-weight:bold; margin-right:4px; }
+.separator { color:#555; margin:0 4px; }
 
 #input-area {
-  position: fixed;
-  bottom: 0; left: 0; right: 0;
-  padding: 16px;
-  background: #0a0a0a;
-  border-top: 1px solid #222;
+  position:fixed;
+  bottom:36px; left:0; right:0;
+  padding:12px 16px;
+  background:#0a0a0a;
+  border-top:1px solid #222;
 }
 #input {
-  width: 100%;
-  background: #1a1a1a;
-  color: #fff;
-  border: 1px solid #333;
-  border-radius: 8px;
-  padding: 12px 16px;
-  font-size: 16px;
-  outline: none;
+  width:100%;
+  background:#1a1a1a;
+  color:#fff;
+  border:1px solid #333;
+  border-radius:8px;
+  padding:12px 16px;
+  font-size:16px;
+  outline:none;
 }
 #status {
-  position: fixed;
-  bottom: 0; left: 0; right: 0;
-  height: 36px;
-  background: #111;
-  color: #888;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
-  border-top: 1px solid #222;
+  position:fixed;
+  bottom:0; left:0; right:0;
+  height:36px;
+  background:#111;
+  color:#888;
+  font-size:13px;
+  display:flex;
+  align-items:center;
+  padding:0 16px;
+  border-top:1px solid #222;
 }
 #typing {
-  position: fixed;
-  bottom: 36px;
-  left: 16px;
-  color: #777;
-  font-size: 13px;
-  display: none;
+  position:fixed;
+  bottom:76px;
+  left:16px;
+  color:#777;
+  font-size:13px;
+  display:none;
 }
 </style>
 </head>
@@ -141,10 +136,7 @@ body {
 
 <script>
 window.addEventListener('load', () => {
-  if (typeof firebase === 'undefined') {
-    document.getElementById('status').innerHTML = '<span style="color:#f44">Firebase не загрузился</span>';
-    return;
-  }
+  if (typeof firebase === 'undefined') return;
 
   const config = {
     apiKey: "AIzaSyBzPbPhYS7dDfhDwaqYLAHpIV6QBN53EV0",
@@ -207,7 +199,7 @@ window.addEventListener('load', () => {
     terminal.scrollTop = terminal.scrollHeight;
   });
 
-  // Ввод сообщений
+  // Ввод
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter') {
       const t = input.value.trim();
@@ -259,7 +251,7 @@ window.addEventListener('load', () => {
     typingEl.textContent = others.length ? '✍️ кто-то печатает…' : '';
   });
 
-  // Открытие боковой панели
+  // Боковая панель
   menuBtn.onclick = () => sidebar.classList.toggle('open');
 });
 </script>
