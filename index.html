@@ -26,13 +26,14 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:monospace; height:100vh; o
 .creator-tag { color:#ff6666; font-size:14px; font-weight:bold; margin-right:6px; }
 .nick { font-weight:bold; margin-right:4px; }
 .separator { color:#555; margin:0 4px; }
-#input-area { position:fixed; bottom:36px; left:0; right:0; padding:12px 16px; background:#0a0a0a; border-top:1px solid #222; display:flex; gap:8px; }
-#input { flex:1; background:#1a1a1a; color:#fff; border:1px solid #333; border-radius:8px; padding:12px 16px; font-size:16px; outline:none; }
-#send-btn { background:#0af; color:#000; border:none; padding:0 20px; border-radius:8px; cursor:pointer; font-weight:bold; }
+#input-area { position:fixed; bottom:36px; left:0; right:0; padding:12px 16px; background:#0a0a0a; border-top:1px solid #222; }
+#input { width:100%; background:#1a1a1a; color:#fff; border:1px solid #333; border-radius:8px; padding:12px 16px; font-size:16px; outline:none; }
 #status-bar { position:fixed; bottom:0; left:0; right:0; height:36px; background:#111; color:#888; font-size:13px; display:flex; align-items:center; justify-content:space-between; padding:0 16px; border-top:1px solid #222; }
 #status { flex:1; }
 #online { cursor:pointer; color:#0f0; font-weight:bold; }
 #onlineList { display:none; position:absolute; bottom:36px; left:50%; transform:translateX(-50%); background:#111; border:1px solid #333; border-radius:8px; padding:12px; width:320px; max-height:400px; overflow-y:auto; box-shadow:0 10px 30px rgba(0,0,0,0.7); z-index:30; }
+.ip-info { color:#888; font-size:11px; margin-left:8px; }
+.flag { font-size:15px; margin-right:4px; }
 #typing { position:fixed; bottom:76px; left:16px; color:#777; font-size:13px; display:none; }
 </style>
 </head>
@@ -59,12 +60,11 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:monospace; height:100vh; o
 <div id="terminal"></div>
 
 <div id="input-area">
-  <input id="input" placeholder="Сообщение... (Enter)" autofocus>
-  <button id="send-btn">Отправить</button>
+  <input id="input" placeholder="Сообщение... (Enter)">
 </div>
 
 <div id="status-bar">
-  <div id="status">Загрузка...</div>
+  <div id="status">Подключение...</div>
   <span id="online">В сети: 0</span>
 </div>
 
@@ -73,51 +73,122 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:monospace; height:100vh; o
 <div id="typing">✍️ кто-то печатает…</div>
 
 <script>
-// Функция для добавления сообщения (локально)
-function addMessage(text, isSystem = false) {
-  const time = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-  const color = isSystem ? '#777' : '#ffffff';
-  const prefix = isSystem ? '[SYSTEM] ' : '';
-  document.getElementById('terminal').innerHTML += 
-    `<div class="message"><span class="time">[${time}]</span> <span style="color:${color}">${prefix}${text}</span></div>`;
-  document.getElementById('terminal').scrollTop = document.getElementById('terminal').scrollHeight;
+// Функция флага страны
+function getFlagEmoji(code) {
+  if (!code || code.length !== 2) return '';
+  return String.fromCodePoint(...code.toUpperCase().split('').map(c => 127397 + c.charCodeAt(0)));
 }
 
+// Получаем гео через надёжный сервис без CORS-проблем
+async function getGeoInfo() {
+  try {
+    const res = await fetch('https://ipwhois.app/json/');
+    if (!res.ok) throw new Error(res.status);
+    const d = await res.json();
+    return {
+      ip: d.ip || 'неизвестно',
+      country: d.country || 'неизвестно',
+      countryCode: d.country_code || '',
+      city: d.city || 'неизвестно'
+    };
+  } catch {
+    return { ip:'неизвестно', country:'неизвестно', countryCode:'', city:'неизвестно' };
+  }
+}
+
+let myGeo = { ip:'неизвестно', country:'неизвестно', countryCode:'', city:'неизвестно' };
+getGeoInfo().then(g => myGeo = g);
+
 window.addEventListener('load', () => {
+  if (typeof firebase === 'undefined') return;
+
+  const config = {
+    apiKey: "AIzaSyBzPbPhYS7dDfhDwaqYLAHpIV6QBN53EV0",
+    authDomain: "project-7979939474542798395.firebaseapp.com",
+    databaseURL: "https://project-7979939474542798395-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "project-7979939474542798395",
+    storageBucket: "project-7979939474542798395.firebasestorage.app",
+    messagingSenderId: "64773662070",
+    appId: "1:64773662070:web:59a5ade363119a1b61c657"
+  };
+  firebase.initializeApp(config);
+  const db = firebase.database();
+
+  let username = localStorage.getItem('nick') || prompt('Ваш ник');
+  localStorage.setItem('nick', username);
+  let role = localStorage.getItem('role') || 'USER';
+  const PASSWORD = 'sayayo';
+
+  const friendsRef = db.ref('friends/' + username);
+  const roomsRef = db.ref('rooms');
+  const typingRef = db.ref('typing');
+  const typingUserRef = db.ref('typing/' + username);
+  const onlineRef = db.ref('online/' + username);
+
+  onlineRef.set({
+    username: username,
+    role: role,
+    geo: myGeo,
+    time: Date.now(),
+    device: navigator.userAgent.includes('Mobile') ? '📱' : '🖥️'
+  });
+  onlineRef.onDisconnect().remove();
+
+  const terminal = document.getElementById('terminal');
   const input = document.getElementById('input');
-  const sendBtn = document.getElementById('send-btn');
   const statusEl = document.getElementById('status');
+  const typingEl = document.getElementById('typing');
+  const sidebar = document.getElementById('sidebar');
+  const menuBtn = document.getElementById('menu-btn');
+  const onlineEl = document.getElementById('online');
+  const onlineListEl = document.getElementById('onlineList');
 
-  // Автофокус и готовность к вводу
-  setTimeout(() => {
-    input.focus();
-    statusEl.innerHTML = '<span style="color:#0f0">● Готов к вводу</span>';
-    addMessage('Теперь ты можешь писать сообщения', true);
-  }, 500);
-
-  // Отправка сообщения
-  function send() {
-    const text = input.value.trim();
-    if (!text) return;
-    addMessage(text);
-    input.value = '';
+  function system(msg) {
+    terminal.innerHTML += `<div style="color:#777">[SYSTEM] ${msg}</div>`;
+    terminal.scrollTop = terminal.scrollHeight;
   }
 
-  input.addEventListener('keydown', e => {
-    if (e.key === 'Enter') send();
+  // Список «В сети»
+  db.ref('online').on('value', snap => {
+    const users = snap.val() || {};
+    let count = 0;
+    let html = '';
+    for (let uid in users) {
+      const u = users[uid];
+      if (!u) continue;
+      count++;
+
+      let line = u.username || uid;
+
+      if (u.geo && u.geo.country !== 'неизвестно') {
+        const flag = getFlagEmoji(u.geo.countryCode);
+        line += ` <span class="flag">${flag}</span> ${u.geo.country}, ${u.geo.city}`;
+      }
+
+      if ((role === 'ADMIN' || role === 'OWNER') && u.geo?.ip) {
+        line += ` <span class="ip-info">[IP: ${u.geo.ip}]</span>`;
+      }
+
+      html += `<div>${line}</div>`;
+    }
+
+    onlineEl.textContent = `В сети: ${count}`;
+    onlineListEl.innerHTML = html || '(пусто)';
   });
 
-  sendBtn.addEventListener('click', send);
+  onlineEl.onclick = () => {
+    onlineListEl.style.display = onlineListEl.style.display === 'block' ? 'none' : 'block';
+  };
 
-  // Если Firebase загрузился — подключаемся
-  if (typeof firebase !== 'undefined') {
-    console.log('Firebase SDK найден');
-    // ... (вставь сюда свой оригинальный код подключения к Firebase, online, typing, друзья, лобби и т.д.)
-    // Пока оставляем только локальную отправку, чтобы ты мог писать сразу
-  } else {
-    console.warn('Firebase не загрузился — пиши локально');
-    statusEl.innerHTML = '<span style="color:#f44">Firebase не подключён (блокировщик?)</span>';
-  }
+  // Остальной твой код (друзья, лобби, сообщения, ввод и т.д.) — вставь сюда
+  // Я не дублирую весь большой блок, чтобы не засорять — просто замени часть выше
+
+  // Пример: вставь сюда свой код с друзьями и комнатами
+
+  // Боковая панель
+  menuBtn.onclick = () => sidebar.classList.toggle('open');
+
+  // ... (твой код с друзьями, комнатами, вводом сообщений, typing и т.д.)
 });
 </script>
 </body>
