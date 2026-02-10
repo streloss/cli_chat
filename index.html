@@ -7,16 +7,22 @@
 <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
-body{margin:0;background:#000;color:#fff;font-family:monospace;line-height:1.4}
-#top{position:fixed;top:0;left:0;width:100%;padding:8px 12px;border-bottom:1px solid #222;background:#000;z-index:10}
-#online{cursor:pointer;color:#0f0}
-#onlineList{display:none;font-size:13px;color:#aaa;padding-top:6px}
-#terminal{padding:60px 12px 120px;height:100vh;overflow-y:auto;white-space:pre-wrap}
-#input{position:fixed;bottom:28px;left:0;width:100%;background:#000;color:#fff;border:none;outline:none;font-size:16px;padding:8px 12px;box-sizing:border-box}
-#status{position:fixed;bottom:0;left:0;width:100%;padding:6px 12px;font-size:13px;border-top:1px solid #222;color:#888}
-.creator-tag{color:#ff5555;font-size:11px;margin-right:5px;vertical-align:super}
-.admin-nick{color:#ffaaaa;font-weight:bold}
-.owner-nick{color:#ff4444;font-weight:bold}
+body { margin:0; background:#000; color:#fff; font-family:monospace; line-height:1.4; }
+#top { position:fixed; top:0; left:0; width:100%; padding:8px 12px; border-bottom:1px solid #222; background:#000; z-index:10; }
+#online { cursor:pointer; color:#0f0; }
+#onlineList { display:none; font-size:13px; color:#aaa; padding-top:6px; }
+#terminal { padding:60px 12px 110px; height:100vh; overflow-y:auto; white-space:pre-wrap; word-wrap:break-word; }
+#input { position:fixed; bottom:28px; left:0; width:100%; background:#000; color:#fff; border:none; outline:none; font-size:16px; padding:8px 12px; box-sizing:border-box; }
+#status { position:fixed; bottom:0; left:0; width:100%; padding:6px 12px; font-size:13px; border-top:1px solid #222; color:#888; box-sizing:border-box; }
+.creator-tag {
+  color: #ff6666;
+  font-size: 14px;          /* заметно больше */
+  font-weight: bold;
+  margin-right: 6px;
+  vertical-align: baseline;
+}
+.admin-nick { color:#ffaaaa; font-weight:bold; }
+.owner-nick { color:#ff4444; font-weight:bold; }
 </style>
 </head>
 <body>
@@ -28,57 +34,178 @@ body{margin:0;background:#000;color:#fff;font-family:monospace;line-height:1.4}
 <div id="typing" style="font-size:13px;color:#777;padding:4px 12px;display:none;position:fixed;bottom:60px;left:0;width:100%">✍️ кто-то печатает…</div>
 
 <script>
-window.addEventListener('load',()=>{
-if(typeof firebase==='undefined'){document.getElementById('status').innerHTML='<span style="color:#f44">Firebase не загрузился</span>';return;}
+window.addEventListener('load', () => {
+  if (typeof firebase === 'undefined') {
+    document.getElementById('status').innerHTML = '<span style="color:#f44">Firebase не загрузился</span>';
+    return;
+  }
 
-const c={apiKey:"AIzaSyBzPbPhYS7dDfhDwaqYLAHpIV6QBN53EV0",authDomain:"project-7979939474542798395.firebaseapp.com",databaseURL:"https://project-7979939474542798395-default-rtdb.europe-west1.firebasedatabase.app",projectId:"project-7979939474542798395",storageBucket:"project-7979939474542798395.firebasestorage.app",messagingSenderId:"64773662070",appId:"1:64773662070:web:59a5ade363119a1b61c657"};
-firebase.initializeApp(c);const db=firebase.database();
+  const config = {
+    apiKey: "AIzaSyBzPbPhYS7dDfhDwaqYLAHpIV6QBN53EV0",
+    authDomain: "project-7979939474542798395.firebaseapp.com",
+    databaseURL: "https://project-7979939474542798395-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "project-7979939474542798395",
+    storageBucket: "project-7979939474542798395.firebasestorage.app",
+    messagingSenderId: "64773662070",
+    appId: "1:64773662070:web:59a5ade363119a1b61c657"
+  };
 
-const getDevice=()=>{const ua=navigator.userAgent.toLowerCase();let os='Desktop',ic='🖥️';if(navigator.userAgentData?.platform){const p=navigator.userAgentData.platform.toLowerCase();if(p==='windows')os='Windows',ic='🪟';else if(p==='macos')os='macOS',ic='🍎';else if(p==='linux')os='Linux',ic='🐧';else if(p==='android')os='Android',ic='🤖';else if(p==='ios')os='iOS',ic='🍏'}else{if(ua.includes('windows'))os='Windows',ic='🪟';else if(ua.includes('mac'))os='macOS',ic='🍎';else if(ua.includes('linux'))os='Linux',ic='🐧';else if(ua.includes('android'))os='Android',ic='🤖';else if(/iphone|ipad|ipod/.test(ua))os='iOS',ic='🍏'}return ic+' '+os};
+  firebase.initializeApp(config);
+  const db = firebase.database();
 
-const pw='sayayo';
-let user=localStorage.getItem('nick')||prompt('Ник');localStorage.setItem('nick',user);
-let role=localStorage.getItem('role')||'USER';
-let col=localStorage.getItem('color')||['#ff5555','#55ff55','#88aaff','#ffaa55','#55ffcc','#cc55ff','#ff88cc','#88ffff'][Math.random()*8|0];localStorage.setItem('color',col);
-
-const msgRef=db.ref('messages'),onlineRef=db.ref('online/'+user),dev=getDevice();
-const typingRef=db.ref('typing'),typUser=db.ref('typing/'+user),typEl=document.getElementById('typing');
-
-onlineRef.set({device:dev,time:Date.now()});onlineRef.onDisconnect().remove();
-
-const term=document.getElementById('terminal'),inp=document.getElementById('input'),stat=document.getElementById('status'),onl=document.getElementById('online'),onlL=document.getElementById('onlineList');
-
-db.ref('online').on('value',s=>{const u=s.val()||{};let c=0,l=[];for(let k in u)if(u[k]?.device){l.push(k+' <span style="color:#0c0">'+u[k].device+'</span>');c++}onl.textContent='В сети: '+c;onlL.innerHTML=l.length?l.join('<br>'):'(пусто)'});
-onl.onclick=()=>onlL.style.display=onlL.style.display==='block'?'none':'block';
-
-msgRef.limitToLast(100).on('child_added',s=>{
-  const m=s.val();if(!m?.user||!m?.text)return;
-  let n=m.user,cls='';
-  let tag='';
-  if(m.role==='OWNER'){cls='owner-nick';tag='<span class="creator-tag">[создатель]</span> '}
-  else if(m.role==='ADMIN'){cls='admin-nick';}
-  const txt=String(m.text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  term.innerHTML+=`<div><span style="color:#555">[${m.time||'--:--'}] </span>${tag}<span class="${cls}">${n}</span><span style="color:#888"> : </span><span style="color:${m.color||'#fff'}">${txt}</span></div>`;
-  term.scrollTop=term.scrollHeight;
-});
-
-inp.addEventListener('keydown',e=>{
-  if(e.key==='Enter'){
-    const t=inp.value.trim();if(!t)return;typUser.remove();
-    if(t.startsWith('/key ')){
-      const p=t.split(' ');if(p[2]!==pw){term.innerHTML+='<div style="color:#777">[SYSTEM] Неверный пароль</div>';inp.value='';return}
-      if(p[1]==='owner'){role='OWNER';localStorage.setItem('role','OWNER');term.innerHTML+='<div style="color:#777">[SYSTEM] Вы OWNER</div>'}
-      else if(p[1]==='admin'){role='ADMIN';localStorage.setItem('role','ADMIN');term.innerHTML+='<div style="color:#777">[SYSTEM] Вы ADMIN</div>'}
-      inp.value='';return;
+  const getDevice = () => {
+    const ua = navigator.userAgent.toLowerCase();
+    let os = 'Desktop', icon = '🖥️';
+    if (navigator.userAgentData?.platform) {
+      const p = navigator.userAgentData.platform.toLowerCase();
+      if (p === 'windows') os = 'Windows', icon = '🪟';
+      else if (p === 'macos') os = 'macOS', icon = '🍎';
+      else if (p === 'linux') os = 'Linux', icon = '🐧';
+      else if (p === 'android') os = 'Android', icon = '🤖';
+      else if (p === 'ios') os = 'iOS', icon = '🍏';
+    } else {
+      if (ua.includes('windows')) os = 'Windows', icon = '🪟';
+      else if (ua.includes('mac')) os = 'macOS', icon = '🍎';
+      else if (ua.includes('linux')) os = 'Linux', icon = '🐧';
+      else if (ua.includes('android')) os = 'Android', icon = '🤖';
+      else if (/iphone|ipad|ipod/.test(ua)) os = 'iOS', icon = '🍏';
     }
-    if(t==='/clear'&&(role==='OWNER'||role==='ADMIN')){msgRef.remove();term.innerHTML='';term.innerHTML+='<div style="color:#777">[SYSTEM] Чат очищен</div>';inp.value='';return}
-    msgRef.push({user,role,text:t,time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),color:col});
-    inp.value='';
-  }else if(e.key.length===1||e.key==='Backspace'){typUser.set(true);typUser.onDisconnect().remove()}
-});
+    return icon + ' ' + os;
+  };
 
-db.ref('.info/connected').on('value',s=>{stat.innerHTML=s.val()?'<span style="color:#0f0">● Онлайн</span>':'<span style="color:#f44">● Оффлайн</span>'});
-typingRef.on('value',s=>{const o=Object.keys(s.val()||{}).filter(u=>u!==user);typEl.style.display=o.length?'block':'none';typEl.textContent=o.length?'✍️ Печатает: '+o.join(', '):''});
+  const PASSWORD = 'sayayo';
+  let username = localStorage.getItem('nick') || prompt('Ник');
+  localStorage.setItem('nick', username);
+
+  let role = localStorage.getItem('role') || 'USER';
+  let color = localStorage.getItem('color') || ['#ff5555','#55ff55','#88aaff','#ffaa55','#55ffcc','#cc55ff','#ff88cc','#88ffff'][Math.random()*8|0];
+  localStorage.setItem('color', color);
+
+  const messagesRef = db.ref('messages');
+  const onlineRef = db.ref('online/' + username);
+  const device = getDevice();
+
+  const typingRef = db.ref('typing');
+  const typingUserRef = db.ref('typing/' + username);
+  const typingEl = document.getElementById('typing');
+
+  onlineRef.set({ device, time: Date.now() });
+  onlineRef.onDisconnect().remove();
+
+  const terminal = document.getElementById('terminal');
+  const input = document.getElementById('input');
+  const statusEl = document.getElementById('status');
+  const onlineEl = document.getElementById('online');
+  const onlineListEl = document.getElementById('onlineList');
+
+  db.ref('online').on('value', snap => {
+    const users = snap.val() || {};
+    let count = 0, list = [];
+    for (let u in users) {
+      if (users[u]?.device) {
+        list.push(`${u} <span style="color:#0c0">${users[u].device}</span>`);
+        count++;
+      }
+    }
+    onlineEl.textContent = `В сети: ${count}`;
+    onlineListEl.innerHTML = list.length ? list.join('<br>') : '(пусто)';
+  });
+
+  onlineEl.onclick = () => {
+    onlineListEl.style.display = onlineListEl.style.display === 'block' ? 'none' : 'block';
+  };
+
+  messagesRef.limitToLast(100).on('child_added', snap => {
+    const m = snap.val();
+    if (!m?.user || !m?.text) return;
+
+    let nickClass = '';
+    let tag = '';
+
+    if (m.role === 'OWNER') {
+      nickClass = 'owner-nick';
+      tag = '<span class="creator-tag">[создатель]</span> ';
+    } else if (m.role === 'ADMIN') {
+      nickClass = 'admin-nick';
+    }
+
+    const safeText = String(m.text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    terminal.innerHTML += `
+      <div>
+        <span style="color:#555">[${m.time || '--:--'}]&nbsp;</span>
+        ${tag}
+        <span class="${nickClass}">${m.user}</span>
+        <span style="color:#888">&nbsp;:&nbsp;</span>
+        <span style="color:${m.color || '#fff'}">${safeText}</span>
+      </div>`;
+
+    terminal.scrollTop = terminal.scrollHeight;
+  });
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const text = input.value.trim();
+      if (!text) return;
+      typingUserRef.remove();
+
+      if (text.startsWith('/key ')) {
+        const parts = text.split(' ');
+        if (parts.length < 3 || parts[2] !== PASSWORD) {
+          terminal.innerHTML += '<div style="color:#777">[SYSTEM] Неверный пароль</div>';
+          input.value = '';
+          return;
+        }
+        const newRole = parts[1].toLowerCase();
+        if (newRole === 'owner') {
+          role = 'OWNER';
+          localStorage.setItem('role', 'OWNER');
+          terminal.innerHTML += '<div style="color:#777">[SYSTEM] Вы OWNER</div>';
+        } else if (newRole === 'admin') {
+          role = 'ADMIN';
+          localStorage.setItem('role', 'ADMIN');
+          terminal.innerHTML += '<div style="color:#777">[SYSTEM] Вы ADMIN</div>';
+        }
+        input.value = '';
+        return;
+      }
+
+      if (text === '/clear' && (role === 'OWNER' || role === 'ADMIN')) {
+        messagesRef.remove();
+        terminal.innerHTML = '';
+        terminal.innerHTML += '<div style="color:#777">[SYSTEM] Чат очищен</div>';
+        input.value = '';
+        return;
+      }
+
+      messagesRef.push({
+        user: username,
+        role: role,
+        text: text,
+        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}),
+        color: color
+      });
+      input.value = '';
+    } else if (e.key.length === 1 || e.key === 'Backspace') {
+      typingUserRef.set(true);
+      typingUserRef.onDisconnect().remove();
+    }
+  });
+
+  db.ref('.info/connected').on('value', snap => {
+    statusEl.innerHTML = snap.val()
+      ? '<span style="color:#0f0">● Онлайн</span>'
+      : '<span style="color:#f44">● Оффлайн</span>';
+  });
+
+  typingRef.on('value', snap => {
+    const others = Object.keys(snap.val() || {}).filter(u => u !== username);
+    typingEl.style.display = others.length ? 'block' : 'none';
+    typingEl.textContent = others.length ? '✍️ Печатает: ' + others.join(', ') : '';
+  });
 });
 </script>
 </body>
