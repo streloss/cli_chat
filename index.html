@@ -12,12 +12,13 @@ body {
   background:#000;
   color:#fff;
   font-family:monospace;
+  line-height: 1.4;
 }
 #top {
   position:fixed;
   top:0; left:0;
   width:100%;
-  padding:6px 10px;
+  padding:8px 12px;
   border-bottom:1px solid #222;
   background:#000;
   z-index:10;
@@ -30,14 +31,14 @@ body {
   display:none;
   font-size:13px;
   color:#aaa;
-  line-height:1.4;
   padding-top:6px;
 }
 #terminal {
-  padding:50px 10px 90px;
+  padding:55px 12px 100px;
   height:100vh;
   overflow-y:auto;
   white-space:pre-wrap;
+  word-wrap:break-word;
 }
 #input {
   position:fixed;
@@ -49,28 +50,31 @@ body {
   outline:none;
   font-family:monospace;
   font-size:16px;
-  padding:6px 10px;
+  padding:8px 12px;
+  box-sizing:border-box;
 }
 #status {
   position:fixed;
   bottom:0; left:0;
   width:100%;
-  padding:6px 10px;
+  padding:6px 12px;
   font-size:13px;
   border-top:1px solid #222;
   color:#888;
+  box-sizing:border-box;
 }
 .creator-tag {
-  color:#ff4444;
+  color:#ff5555;
   font-size:11px;
   margin-left:4px;
   vertical-align: super;
 }
-.admin {
-  color:#ff7777;
+.admin-nick {
+  color:#ff9999;
+  font-weight:bold;
 }
 .owner-nick {
-  color:#ff0000;
+  color:#ff4444;
   font-weight:bold;
 }
 </style>
@@ -84,36 +88,52 @@ body {
 
 <div id="terminal"></div>
 
-<input id="input" placeholder="Введите сообщение и Enter">
+<input id="input" placeholder="Сообщение → Enter">
 
 <div id="status">Подключение...</div>
-<div id="typing" style="font-size:13px;color:#aaa;padding:4px 10px;display:none">
+<div id="typing" style="font-size:13px; color:#777; padding:4px 12px; display:none; position:fixed; bottom:60px; left:0; width:100%;">
   ✍️ кто-то печатает…
 </div>
 
 <script>
-function getDevice() {
+// Определение устройства / ОС
+function getDeviceInfo() {
   const ua = navigator.userAgent.toLowerCase();
-  const w = window.innerWidth || screen.width;
-  const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  let os = 'Unknown';
+  let icon = '🖥️';
+  let type = 'Desktop';
 
-  if (/ipad|ipod|iphone/.test(ua) && !/windows/.test(ua)) {
-    if (ua.includes('ipad') || (hasTouch && w >= 768)) return '📱 iPad';
-    return '📱 iPhone';
+  if (navigator.userAgentData && navigator.userAgentData.platform) {
+    const p = navigator.userAgentData.platform.toLowerCase();
+    if (p === 'windows')     { os = 'Windows';   icon = '🪟'; }
+    else if (p === 'macos')  { os = 'macOS';    icon = '🍎'; }
+    else if (p === 'linux')  { os = 'Linux';    icon = '🐧'; }
+    else if (p === 'android') { os = 'Android'; icon = '🤖'; type = 'Mobile'; }
+    else if (p === 'ios')    { os = 'iOS';      icon = '🍏'; type = 'Mobile'; }
+  } else {
+    if      (ua.includes('windows'))     { os = 'Windows'; icon = '🪟'; }
+    else if (ua.includes('mac os') || ua.includes('macintosh')) { os = 'macOS'; icon = '🍎'; }
+    else if (ua.includes('linux') && !ua.includes('android')) { os = 'Linux'; icon = '🐧'; }
+    else if (ua.includes('android'))     { os = 'Android'; icon = '🤖'; type = 'Mobile'; }
+    else if (/iphone|ipad|ipod/.test(ua)){ os = 'iOS';     icon = '🍏'; type = 'Mobile'; }
   }
-  if (ua.includes('android')) {
-    if (hasTouch && w >= 768) return '📱 Android Tablet';
-    return '📱 Android Phone';
+
+  const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  const width = window.innerWidth || screen.width;
+
+  if (isTouch) {
+    if (width >= 900) {
+      type = 'Tablet';
+      if (os === 'iOS')   icon = '📱 iPad';
+      if (os === 'Android') icon = '📱 Tablet';
+    } else {
+      type = 'Phone';
+      if (os === 'iOS')   icon = '📱 iPhone';
+      if (os === 'Android') icon = '📱 Phone';
+    }
   }
-  if (hasTouch) {
-    if (w >= 1024) return '🖥️ Touch / 2-in-1';
-    if (w >= 600)  return '📱 Large Phone / Small Tablet';
-    return '📱 Phone';
-  }
-  if (ua.includes('mac'))     return '🖥️ Mac';
-  if (ua.includes('windows')) return '🖥️ Windows';
-  if (ua.includes('linux'))   return '🖥️ Linux';
-  return '🖥️ Desktop / Laptop';
+
+  return `${icon} ${os} (${type})`;
 }
 
 const PASSWORD = 'sayayo';
@@ -139,20 +159,20 @@ if (!username) {
 let role = localStorage.getItem('role') || 'USER';
 let color = localStorage.getItem('color');
 if (!color) {
-  const arr = ['#ff5555','#55ff55','#5555ff','#ffaa00','#00ffaa','#aa00ff','#ff77cc','#77ffff'];
+  const arr = ['#ff5555','#55ff55','#88aaff','#ffaa55','#55ffcc','#cc55ff','#ff88cc','#88ffff'];
   color = arr[Math.floor(Math.random()*arr.length)];
   localStorage.setItem('color', color);
 }
 
 const messagesRef = db.ref('messages');
 const onlineRef   = db.ref('online/' + username);
-const device      = getDevice();
+const device      = getDeviceInfo();
 
 const typingRef     = db.ref('typing');
 const typingUserRef = db.ref('typing/' + username);
 const typingEl      = document.getElementById('typing');
 
-onlineRef.set({ device: device, time: Date.now() });
+onlineRef.set({ device, time: Date.now() });
 onlineRef.onDisconnect().remove();
 
 const terminal     = document.getElementById('terminal');
@@ -162,22 +182,22 @@ const onlineEl     = document.getElementById('online');
 const onlineListEl = document.getElementById('onlineList');
 
 function system(msg) {
-  terminal.innerHTML += `<div style="color:#888">[SYSTEM] ${msg}</div>`;
+  terminal.innerHTML += `<div style="color:#777">[SYSTEM] ${msg}</div>`;
   terminal.scrollTop = terminal.scrollHeight;
 }
 
-db.ref('online').on('value', s => {
-  const users = s.val() || {};
+db.ref('online').on('value', snap => {
+  const users = snap.val() || {};
   const list = [];
   let count = 0;
   for (const u in users) {
-    if (users[u] && users[u].device) {
-      list.push(`${u} <span style="color:#0a0">${users[u].device}</span>`);
+    if (users[u]?.device) {
+      list.push(`${u} <span style="color:#0c0">${users[u].device}</span>`);
       count++;
     }
   }
   onlineEl.textContent = `В сети: ${count}`;
-  onlineListEl.innerHTML = list.join('<br>') || '(пусто)';
+  onlineListEl.innerHTML = list.length ? list.join('<br>') : '(никого)';
 });
 
 onlineEl.onclick = () => {
@@ -185,55 +205,62 @@ onlineEl.onclick = () => {
 };
 
 messagesRef.limitToLast(100).on('child_added', snap => {
-  const m = snap.val();
-  let nickStyle = `color:${m.color};`;
-  let extraTag = '';
+  const m = snap.val() || {};
+  const msgTime = m.time || '--:--';
+  const msgUser = m.user || '(?)';
+  const msgText = m.text || '';
+
+  let nickClass = '';
+  let tag = '';
 
   if (m.role === 'OWNER') {
-    nickStyle = 'color:#ff0000; font-weight:bold;';
-    extraTag = '<span class="creator-tag">[создатель]</span>';
+    nickClass = 'owner-nick';
+    tag = '<span class="creator-tag">[создатель]</span>';
   } else if (m.role === 'ADMIN') {
-    nickStyle = 'color:#ff7777; font-weight:bold;';
+    nickClass = 'admin-nick';
+    // tag = '<span class="creator-tag">[админ]</span>';   ← раскомментируй, если хочешь тег и для админа
   }
 
   terminal.innerHTML += `
     <div>
-      [${m.time}] 
-      <span style="${nickStyle}">${m.user}${extraTag}</span>:
-      ${m.text}
+      <span style="color:#555">[${msgTime}]</span> 
+      <span class="${nickClass}">${msgUser}${tag}</span>:
+      <span style="color:${m.color || '#ffffff'}">${msgText}</span>
     </div>`;
+
   terminal.scrollTop = terminal.scrollHeight;
 });
 
 input.addEventListener('keydown', e => {
   if (e.key === 'Enter') {
-    const t = input.value.trim();
-    if (!t) return;
+    const text = input.value.trim();
+    if (!text) return;
 
     typingUserRef.remove();
 
-    if (t.startsWith('/key ')) {
-      const parts = t.split(' ');
-      if (parts[2] !== PASSWORD) {
+    if (text.startsWith('/key ')) {
+      const parts = text.split(' ');
+      if (parts.length < 3 || parts[2] !== PASSWORD) {
         system('Неверный пароль');
-        input.value = '';
-        return;
-      }
-      if (parts[1] === 'owner') {
-        role = 'OWNER';
-        localStorage.setItem('role', 'OWNER');
-        system('Вы теперь OWNER (создатель)');
-      }
-      if (parts[1] === 'admin') {
-        role = 'ADMIN';
-        localStorage.setItem('role', 'ADMIN');
-        system('Вы теперь ADMIN');
+      } else {
+        const newRole = parts[1].toLowerCase();
+        if (newRole === 'owner') {
+          role = 'OWNER';
+          localStorage.setItem('role', 'OWNER');
+          system('Теперь вы OWNER (создатель)');
+        } else if (newRole === 'admin') {
+          role = 'ADMIN';
+          localStorage.setItem('role', 'ADMIN');
+          system('Теперь вы ADMIN');
+        } else {
+          system('Неизвестная роль');
+        }
       }
       input.value = '';
       return;
     }
 
-    if (t === '/clear') {
+    if (text === '/clear') {
       if (role === 'OWNER' || role === 'ADMIN') {
         messagesRef.remove();
         terminal.innerHTML = '';
@@ -248,12 +275,13 @@ input.addEventListener('keydown', e => {
     messagesRef.push({
       user: username,
       role: role,
-      text: t,
+      text: text,
       time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
       color: color
     });
+
     input.value = '';
-  } else {
+  } else if (e.key.length === 1 || e.key === 'Backspace') {
     typingUserRef.set(true);
     typingUserRef.onDisconnect().remove();
   }
@@ -262,18 +290,16 @@ input.addEventListener('keydown', e => {
 db.ref('.info/connected').on('value', snap => {
   statusEl.innerHTML = snap.val()
     ? '<span style="color:#0f0">● Онлайн</span>'
-    : '<span style="color:#f00">● Оффлайн</span>';
+    : '<span style="color:#f44">● Оффлайн</span>';
 });
 
 typingRef.on('value', snap => {
   const users = snap.val() || {};
   const others = Object.keys(users).filter(u => u !== username);
-  if (others.length) {
-    typingEl.style.display = 'block';
-    typingEl.textContent = '✍️ Печатает: ' + others.join(', ');
-  } else {
-    typingEl.style.display = 'none';
-  }
+  typingEl.textContent = others.length 
+    ? `✍️ Печатает: ${others.join(', ')}`
+    : '';
+  typingEl.style.display = others.length ? 'block' : 'none';
 });
 </script>
 </body>
