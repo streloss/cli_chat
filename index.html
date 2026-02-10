@@ -4,69 +4,120 @@
 <meta charset="UTF-8">
 <title>CLI Chat ALPHA</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- Firebase (ТОЛЬКО ОДИН РАЗ) -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
-body{margin:0;background:#000;color:#fff;font-family:monospace}
-#top{position:fixed;top:0;left:0;width:100%;padding:6px 10px;border-bottom:1px solid #222;background:#000}
-#online{cursor:pointer;color:#0f0}
-#onlineList{display:none;font-size:13px;color:#aaa;line-height:1.4}
-#terminal{padding:50px 10px 90px;height:100vh;overflow-y:auto;white-space:pre-wrap}
-#input{position:fixed;bottom:28px;left:0;width:100%;background:#000;color:#fff;border:none;outline:none;font-family:monospace;font-size:16px;padding:6px 10px}
-#status{position:fixed;bottom:0;left:0;width:100%;padding:6px 10px;font-size:13px;border-top:1px solid #222;color:#888}
-.owner{color:red;font-weight:bold}
-.admin{color:#ff5555}
+body {
+  margin:0;
+  background:#000;
+  color:#fff;
+  font-family:monospace;
+}
+#top {
+  position:fixed;
+  top:0; left:0;
+  width:100%;
+  padding:6px 10px;
+  border-bottom:1px solid #222;
+  background:#000;
+  z-index:10;
+}
+#online {
+  cursor:pointer;
+  color:#0f0;
+}
+#onlineList {
+  display:none;
+  font-size:13px;
+  color:#aaa;
+  line-height:1.4;
+  padding-top:6px;
+}
+#terminal {
+  padding:50px 10px 90px;
+  height:100vh;
+  overflow-y:auto;
+  white-space:pre-wrap;
+}
+#input {
+  position:fixed;
+  bottom:28px; left:0;
+  width:100%;
+  background:#000;
+  color:#fff;
+  border:none;
+  outline:none;
+  font-family:monospace;
+  font-size:16px;
+  padding:6px 10px;
+}
+#status {
+  position:fixed;
+  bottom:0; left:0;
+  width:100%;
+  padding:6px 10px;
+  font-size:13px;
+  border-top:1px solid #222;
+  color:#888;
+}
+.creator-tag {
+  color:#ff4444;
+  font-size:11px;
+  margin-left:4px;
+  vertical-align: super;
+}
+.admin {
+  color:#ff7777;
+}
+.owner-nick {
+  color:#ff0000;
+  font-weight:bold;
+}
 </style>
 </head>
 <body>
+
 <div id="top">
   <span id="online">В сети: 0</span>
   <div id="onlineList"></div>
 </div>
+
 <div id="terminal"></div>
+
 <input id="input" placeholder="Введите сообщение и Enter">
+
 <div id="status">Подключение...</div>
 <div id="typing" style="font-size:13px;color:#aaa;padding:4px 10px;display:none">
   ✍️ кто-то печатает…
 </div>
 
 <script>
-/* ===== Улучшенное определение устройства (2025–2026) ===== */
 function getDevice() {
   const ua = navigator.userAgent.toLowerCase();
   const w = window.innerWidth || screen.width;
   const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
-  // iOS
   if (/ipad|ipod|iphone/.test(ua) && !/windows/.test(ua)) {
     if (ua.includes('ipad') || (hasTouch && w >= 768)) return '📱 iPad';
     return '📱 iPhone';
   }
-
-  // Android
   if (ua.includes('android')) {
     if (hasTouch && w >= 768) return '📱 Android Tablet';
     return '📱 Android Phone';
   }
-
-  // Другие мобильные / touch-устройства
   if (hasTouch) {
     if (w >= 1024) return '🖥️ Touch / 2-in-1';
     if (w >= 600)  return '📱 Large Phone / Small Tablet';
     return '📱 Phone';
   }
-
-  // Десктопы
   if (ua.includes('mac'))     return '🖥️ Mac';
   if (ua.includes('windows')) return '🖥️ Windows';
   if (ua.includes('linux'))   return '🖥️ Linux';
-
   return '🖥️ Desktop / Laptop';
 }
 
-var PASSWORD = 'sayayo';
-var firebaseConfig = {
+const PASSWORD = 'sayayo';
+const firebaseConfig = {
   apiKey: "AIzaSyBzPbPhYS7dDfhDwaqYLAHpIV6QBN53EV0",
   authDomain: "project-7979939474542798395.firebaseapp.com",
   databaseURL: "https://project-7979939474542798395-default-rtdb.europe-west1.firebasedatabase.app",
@@ -77,89 +128,107 @@ var firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
-var db = firebase.database();
+const db = firebase.database();
 
-var username = localStorage.getItem('nick');
+let username = localStorage.getItem('nick');
 if (!username) {
   username = prompt('Введите ник');
   localStorage.setItem('nick', username);
 }
 
-var role = localStorage.getItem('role') || 'USER';
-var color = localStorage.getItem('color');
+let role = localStorage.getItem('role') || 'USER';
+let color = localStorage.getItem('color');
 if (!color) {
-  var arr = ['#ff5555','#55ff55','#5555ff','#ffaa00','#00ffaa','#aa00ff'];
+  const arr = ['#ff5555','#55ff55','#5555ff','#ffaa00','#00ffaa','#aa00ff','#ff77cc','#77ffff'];
   color = arr[Math.floor(Math.random()*arr.length)];
   localStorage.setItem('color', color);
 }
 
-var messagesRef = db.ref('messages');
-var onlineRef   = db.ref('online/' + username);
-var device      = getDevice();
+const messagesRef = db.ref('messages');
+const onlineRef   = db.ref('online/' + username);
+const device      = getDevice();
 
-var typingRef     = db.ref('typing');
-var typingUserRef = db.ref('typing/' + username);
-var typingEl      = document.getElementById('typing');
+const typingRef     = db.ref('typing');
+const typingUserRef = db.ref('typing/' + username);
+const typingEl      = document.getElementById('typing');
 
 onlineRef.set({ device: device, time: Date.now() });
 onlineRef.onDisconnect().remove();
 
-var terminal    = document.getElementById('terminal');
-var input       = document.getElementById('input');
-var statusEl    = document.getElementById('status');
-var onlineEl    = document.getElementById('online');
-var onlineListEl= document.getElementById('onlineList');
+const terminal     = document.getElementById('terminal');
+const input        = document.getElementById('input');
+const statusEl     = document.getElementById('status');
+const onlineEl     = document.getElementById('online');
+const onlineListEl = document.getElementById('onlineList');
 
 function system(msg) {
-  terminal.innerHTML += '<div style="color:#888">[SYSTEM] ' + msg + '</div>';
+  terminal.innerHTML += `<div style="color:#888">[SYSTEM] ${msg}</div>`;
   terminal.scrollTop = terminal.scrollHeight;
 }
 
-db.ref('online').on('value', function(s) {
-  var users = s.val() || {};
-  var list = [];
-  var count = 0;
-  for (var u in users) {
+db.ref('online').on('value', s => {
+  const users = s.val() || {};
+  const list = [];
+  let count = 0;
+  for (const u in users) {
     if (users[u] && users[u].device) {
-      list.push(u + ' <span style="color:#0a0">' + users[u].device + '</span>');
+      list.push(`${u} <span style="color:#0a0">${users[u].device}</span>`);
       count++;
     }
   }
-  onlineEl.textContent = 'В сети: ' + count;
+  onlineEl.textContent = `В сети: ${count}`;
   onlineListEl.innerHTML = list.join('<br>') || '(пусто)';
 });
 
-onlineEl.onclick = function() {
+onlineEl.onclick = () => {
   onlineListEl.style.display = onlineListEl.style.display === 'block' ? 'none' : 'block';
 };
 
-messagesRef.limitToLast(100).on('child_added', function(s) {
-  var m = s.val();
-  var roleClass = '';
-  if (m.role === 'OWNER') roleClass = 'owner';
-  if (m.role === 'ADMIN') roleClass = 'admin';
+messagesRef.limitToLast(100).on('child_added', snap => {
+  const m = snap.val();
+  let nickStyle = `color:${m.color};`;
+  let extraTag = '';
 
-  terminal.innerHTML +=
-    '<div>' +
-      '[' + m.time + '] ' +
-      '<span class="' + roleClass + '">' + m.user + '</span>' +
-      ': <span style="color:' + m.color + '">' + m.text + '</span>' +
-    '</div>';
+  if (m.role === 'OWNER') {
+    nickStyle = 'color:#ff0000; font-weight:bold;';
+    extraTag = '<span class="creator-tag">[создатель]</span>';
+  } else if (m.role === 'ADMIN') {
+    nickStyle = 'color:#ff7777; font-weight:bold;';
+  }
+
+  terminal.innerHTML += `
+    <div>
+      [${m.time}] 
+      <span style="${nickStyle}">${m.user}${extraTag}</span>:
+      ${m.text}
+    </div>`;
   terminal.scrollTop = terminal.scrollHeight;
 });
 
-input.addEventListener('keydown', function(e) {
+input.addEventListener('keydown', e => {
   if (e.key === 'Enter') {
-    var t = input.value.trim();
+    const t = input.value.trim();
     if (!t) return;
 
     typingUserRef.remove();
 
     if (t.startsWith('/key ')) {
-      var p = t.split(' ');
-      if (p[2] !== PASSWORD) { system('Неверный пароль'); input.value=''; return; }
-      if (p[1] === 'owner') { role='OWNER'; localStorage.setItem('role','OWNER'); system('Вы OWNER'); }
-      if (p[1] === 'admin') { role='ADMIN'; localStorage.setItem('role','ADMIN'); system('Вы ADMIN'); }
+      const parts = t.split(' ');
+      if (parts[2] !== PASSWORD) {
+        system('Неверный пароль');
+        input.value = '';
+        return;
+      }
+      if (parts[1] === 'owner') {
+        role = 'OWNER';
+        localStorage.setItem('role', 'OWNER');
+        system('Вы теперь OWNER (создатель)');
+      }
+      if (parts[1] === 'admin') {
+        role = 'ADMIN';
+        localStorage.setItem('role', 'ADMIN');
+        system('Вы теперь ADMIN');
+      }
       input.value = '';
       return;
     }
@@ -185,24 +254,23 @@ input.addEventListener('keydown', function(e) {
     });
     input.value = '';
   } else {
-    // показываем что печатаем
     typingUserRef.set(true);
     typingUserRef.onDisconnect().remove();
   }
 });
 
-db.ref('.info/connected').on('value', function(s) {
-  statusEl.innerHTML = s.val()
+db.ref('.info/connected').on('value', snap => {
+  statusEl.innerHTML = snap.val()
     ? '<span style="color:#0f0">● Онлайн</span>'
     : '<span style="color:#f00">● Оффлайн</span>';
 });
 
-typingRef.on('value', function(s) {
-  var users = s.val() || {};
-  var list = Object.keys(users).filter(u => u !== username);
-  if (list.length) {
+typingRef.on('value', snap => {
+  const users = snap.val() || {};
+  const others = Object.keys(users).filter(u => u !== username);
+  if (others.length) {
     typingEl.style.display = 'block';
-    typingEl.textContent = '✍️ Печатает: ' + list.join(', ');
+    typingEl.textContent = '✍️ Печатает: ' + others.join(', ');
   } else {
     typingEl.style.display = 'none';
   }
