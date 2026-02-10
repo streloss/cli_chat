@@ -7,32 +7,133 @@
 <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
-body{margin:0;background:#000;color:#fff;font-family:monospace;line-height:1.4}
-#top{position:fixed;top:0;left:0;width:100%;padding:8px 12px;border-bottom:1px solid #222;background:#000;z-index:10}
-#online{cursor:pointer;color:#0f0}
-#onlineList{display:none;font-size:13px;color:#aaa;padding-top:6px}
-#terminal{padding:60px 12px 110px;height:100vh;overflow-y:auto;white-space:pre-wrap}
-#input{position:fixed;bottom:28px;left:0;width:100%;background:#000;color:#fff;border:none;outline:none;font-size:16px;padding:8px 12px;box-sizing:border-box}
-#status{position:fixed;bottom:0;left:0;width:100%;padding:6px 12px;font-size:13px;border-top:1px solid #222;color:#888}
-.creator-tag{color:#ff6666;font-size:14px;font-weight:bold;margin-right:6px;vertical-align:baseline}
-.admin-nick{color:#ffaaaa;font-weight:bold}
-.owner-nick{color:#ff4444;font-weight:bold}
+* { box-sizing:border-box; }
+body { 
+  margin:0; 
+  background:#0d0d0d; 
+  color:#e0e0e0; 
+  font-family:monospace; 
+  height:100vh; 
+  overflow:hidden; 
+}
+#sidebar {
+  position:fixed;
+  left:0; top:0; bottom:0;
+  width:280px;
+  background:#111;
+  border-right:1px solid #222;
+  padding:20px;
+  transform:translateX(-100%);
+  transition:transform 0.3s ease;
+  z-index:100;
+}
+#sidebar.open { transform:translateX(0); }
+#sidebar h2 { margin:0 0 16px; font-size:16px; color:#aaa; }
+#friends-list { font-size:14px; color:#ccc; }
+.friend { margin:8px 0; }
+.friend.online::before { content:"● "; color:#0f0; }
+
+#top-bar {
+  position:fixed;
+  top:0; left:0; right:0;
+  height:50px;
+  background:#111;
+  border-bottom:1px solid #222;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 16px;
+  z-index:10;
+}
+#menu-btn { cursor:pointer; font-size:20px; color:#0af; }
+#lobby-icon { cursor:pointer; font-size:20px; color:#0f0; }
+
+#terminal {
+  padding:60px 16px 100px;
+  height:100vh;
+  overflow-y:auto;
+  background:#0d0d0d;
+}
+.message {
+  margin:12px 0;
+  line-height:1.4;
+}
+.time { color:#555; margin-right:8px; }
+.nick { font-weight:bold; }
+.creator-tag { 
+  color:#ff6666; 
+  font-size:14px; 
+  font-weight:bold; 
+  margin-right:6px; 
+}
+.text { color:#ffffff; }
+
+#input-area {
+  position:fixed;
+  bottom:0; left:0; right:0;
+  padding:16px;
+  background:#0d0d0d;
+  border-top:1px solid #222;
+}
+#input {
+  width:100%;
+  background:#1a1a1a;
+  color:#fff;
+  border:1px solid #333;
+  border-radius:8px;
+  padding:12px 16px;
+  font-size:16px;
+  outline:none;
+}
+#status {
+  position:fixed;
+  bottom:0; left:0; right:0;
+  height:40px;
+  background:#111;
+  color:#888;
+  font-size:13px;
+  display:flex;
+  align-items:center;
+  padding:0 16px;
+  border-top:1px solid #222;
+}
+#typing {
+  position:fixed;
+  bottom:40px;
+  left:16px;
+  color:#777;
+  font-size:13px;
+  display:none;
+}
 </style>
 </head>
 <body>
 
-<div id="top"><span id="online">В сети: 0</span><div id="onlineList"></div></div>
+<div id="sidebar">
+  <h2>Друзья</h2>
+  <div id="friends-list"></div>
+  <h2 style="margin-top:32px">Лобби</h2>
+  <div>Приватные комнаты (скоро)</div>
+</div>
+
+<div id="top-bar">
+  <span id="menu-btn">☰</span>
+  <div>CLI Chat</div>
+  <span id="lobby-icon">🏠</span>
+</div>
+
 <div id="terminal"></div>
-<input id="input" placeholder="Сообщение → Enter">
+
+<div id="input-area">
+  <input id="input" placeholder="Сообщение... (Enter)">
+</div>
+
 <div id="status">Подключение...</div>
-<div id="typing" style="font-size:13px;color:#777;padding:4px 12px;display:none;position:fixed;bottom:60px;left:0;width:100%">✍️ кто-то печатает…</div>
+<div id="typing">✍️ кто-то печатает…</div>
 
 <script>
 window.addEventListener('load', () => {
-  if (typeof firebase === 'undefined') {
-    document.getElementById('status').innerHTML = '<span style="color:#f44">Firebase не загрузился</span>';
-    return;
-  }
+  if (typeof firebase === 'undefined') return;
 
   const config = {
     apiKey: "AIzaSyBzPbPhYS7dDfhDwaqYLAHpIV6QBN53EV0",
@@ -43,100 +144,66 @@ window.addEventListener('load', () => {
     messagingSenderId: "64773662070",
     appId: "1:64773662070:web:59a5ade363119a1b61c657"
   };
-
   firebase.initializeApp(config);
   const db = firebase.database();
 
-  const getDevice = () => {
-    const ua = navigator.userAgent.toLowerCase();
-    let os = 'Desktop', icon = '🖥️';
-    if (navigator.userAgentData?.platform) {
-      const p = navigator.userAgentData.platform.toLowerCase();
-      if (p === 'windows') os = 'Windows', icon = '🪟';
-      else if (p === 'macos') os = 'macOS', icon = '🍎';
-      else if (p === 'linux') os = 'Linux', icon = '🐧';
-      else if (p === 'android') os = 'Android', icon = '🤖';
-      else if (p === 'ios') os = 'iOS', icon = '🍏';
-    } else {
-      if (ua.includes('windows')) os = 'Windows', icon = '🪟';
-      else if (ua.includes('mac')) os = 'macOS', icon = '🍎';
-      else if (ua.includes('linux')) os = 'Linux', icon = '🐧';
-      else if (ua.includes('android')) os = 'Android', icon = '🤖';
-      else if (/iphone|ipad|ipod/.test(ua)) os = 'iOS', icon = '🍏';
-    }
-    return icon + ' ' + os;
-  };
-
-  const PASSWORD = 'sayayo';
-  let username = localStorage.getItem('nick') || prompt('Ник');
+  let username = localStorage.getItem('nick') || prompt('Ваш ник');
   localStorage.setItem('nick', username);
   let role = localStorage.getItem('role') || 'USER';
+  const PASSWORD = 'sayayo';
 
   const messagesRef = db.ref('messages');
   const onlineRef = db.ref('online/' + username);
-  const device = getDevice();
-
   const typingRef = db.ref('typing');
   const typingUserRef = db.ref('typing/' + username);
-  const typingEl = document.getElementById('typing');
 
-  onlineRef.set({device, time: Date.now()});
+  onlineRef.set({device: getDevice(), time: Date.now()});
   onlineRef.onDisconnect().remove();
 
   const terminal = document.getElementById('terminal');
   const input = document.getElementById('input');
   const statusEl = document.getElementById('status');
-  const onlineEl = document.getElementById('online');
-  const onlineListEl = document.getElementById('onlineList');
+  const typingEl = document.getElementById('typing');
+  const sidebar = document.getElementById('sidebar');
+  const menuBtn = document.getElementById('menu-btn');
 
+  function getDevice() {
+    return navigator.userAgent.includes('Mobile') ? '📱' : '🖥️';
+  }
+
+  function system(msg) {
+    terminal.innerHTML += `<div style="color:#777">[SYSTEM] ${msg}</div>`;
+    terminal.scrollTop = terminal.scrollHeight;
+  }
+
+  // Онлайн
   db.ref('online').on('value', snap => {
     const users = snap.val() || {};
-    let count = 0, list = [];
-    for (let u in users) {
-      if (users[u]?.device) {
-        list.push(`${u} <span style="color:#0c0">${users[u].device}</span>`);
-        count++;
-      }
-    }
-    onlineEl.textContent = `В сети: ${count}`;
-    onlineListEl.innerHTML = list.length ? list.join('<br>') : '(пусто)';
+    let count = Object.keys(users).length;
+    document.getElementById('online').textContent = `В сети: ${count}`;
   });
 
-  onlineEl.onclick = () => {
-    onlineListEl.style.display = onlineListEl.style.display === 'block' ? 'none' : 'block';
-  };
-
+  // Сообщения — белый текст, тег слева
   messagesRef.limitToLast(100).on('child_added', snap => {
     const m = snap.val();
     if (!m?.user || !m?.text) return;
 
-    let nickClass = '';
-    let tag = '';
-
-    if (m.role === 'OWNER') {
-      nickClass = 'owner-nick';
-      tag = '<span class="creator-tag">[создатель]</span>&nbsp;';
-    } else if (m.role === 'ADMIN') {
-      nickClass = 'admin-nick';
-    }
-
-    const safeText = String(m.text)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+    let nickClass = m.role === 'OWNER' ? 'owner-nick' : m.role === 'ADMIN' ? 'admin-nick' : '';
+    let tag = m.role === 'OWNER' ? '<span class="creator-tag">[создатель]</span>&nbsp;' : '';
 
     terminal.innerHTML += 
-      '<div>' +
-        '<span style="color:#555">[' + (m.time || '--:--') + '] </span>' +
+      '<div class="message">' +
+        '<span class="time">[' + (m.time || '--:--') + ']</span> ' +
         tag +
-        '<span class="' + nickClass + '">' + m.user + '</span>' +
-        '<span style="color:#888">&nbsp;:&nbsp;</span>' +
-        '<span style="color:#ffffff">' + safeText + '</span>' +
+        '<span class="nick ' + nickClass + '">' + m.user + '</span>' +
+        '<span style="color:#555"> : </span>' +
+        '<span class="text">' + m.text + '</span>' +
       '</div>';
 
     terminal.scrollTop = terminal.scrollHeight;
   });
 
+  // Ввод
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter') {
       const t = input.value.trim();
@@ -145,21 +212,11 @@ window.addEventListener('load', () => {
 
       if (t.startsWith('/key ')) {
         const p = t.split(' ');
-        if (p[2] !== PASSWORD) {
-          terminal.innerHTML += '<div style="color:#777">[SYSTEM] Неверный пароль</div>';
-          input.value = '';
-          return;
-        }
-        const newRole = p[1].toLowerCase();
-        if (newRole === 'owner') {
-          role = 'OWNER';
-          localStorage.setItem('role', 'OWNER');
-          terminal.innerHTML += '<div style="color:#777">[SYSTEM] Вы OWNER</div>';
-        } else if (newRole === 'admin') {
-          role = 'ADMIN';
-          localStorage.setItem('role', 'ADMIN');
-          terminal.innerHTML += '<div style="color:#777">[SYSTEM] Вы ADMIN</div>';
-        }
+        if (p[2] === PASSWORD) {
+          role = p[1] === 'owner' ? 'OWNER' : p[1] === 'admin' ? 'ADMIN' : role;
+          localStorage.setItem('role', role);
+          system('Роль изменена');
+        } else system('Неверный пароль');
         input.value = '';
         return;
       }
@@ -167,14 +224,14 @@ window.addEventListener('load', () => {
       if (t === '/clear' && (role === 'OWNER' || role === 'ADMIN')) {
         messagesRef.remove();
         terminal.innerHTML = '';
-        terminal.innerHTML += '<div style="color:#777">[SYSTEM] Чат очищен</div>';
+        system('Чат очищен');
         input.value = '';
         return;
       }
 
       messagesRef.push({
         user: username,
-        role: role,
+        role,
         text: t,
         time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
       });
@@ -185,15 +242,19 @@ window.addEventListener('load', () => {
     }
   });
 
-  db.ref('.info/connected').on('value', snap => {
-    statusEl.innerHTML = snap.val() ? '<span style="color:#0f0">● Онлайн</span>' : '<span style="color:#f44">● Оффлайн</span>';
+  // Typing и статус
+  db.ref('.info/connected').on('value', s => {
+    statusEl.innerHTML = s.val() ? '<span style="color:#0f0">● Онлайн</span>' : '<span style="color:#f44">● Оффлайн</span>';
   });
 
-  typingRef.on('value', snap => {
-    const others = Object.keys(snap.val() || {}).filter(u => u !== username);
+  typingRef.on('value', s => {
+    const others = Object.keys(s.val() || {}).filter(u => u !== username);
     typingEl.style.display = others.length ? 'block' : 'none';
-    typingEl.textContent = others.length ? '✍️ Печатает: ' + others.join(', ') : '';
+    typingEl.textContent = others.length ? '✍️ кто-то печатает…' : '';
   });
+
+  // Боковая панель
+  menuBtn.onclick = () => sidebar.classList.toggle('open');
 });
 </script>
 </body>
