@@ -64,7 +64,7 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:monospace; height:100vh; o
 </div>
 
 <div id="status-bar">
-  <div id="status">Подключение...</div>
+  <div id="status">Загрузка...</div>
   <span id="online">В сети: 0</span>
 </div>
 
@@ -79,11 +79,11 @@ function getFlagEmoji(code) {
   return String.fromCodePoint(...code.toUpperCase().split('').map(c => 127397 + c.charCodeAt(0)));
 }
 
-// Получаем гео через надёжный сервис без CORS-проблем
+// Получаем гео через ipwhois.app (надёжный, без токена, CORS работает)
 async function getGeoInfo() {
   try {
     const res = await fetch('https://ipwhois.app/json/');
-    if (!res.ok) throw new Error(res.status);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const d = await res.json();
     return {
       ip: d.ip || 'неизвестно',
@@ -91,7 +91,8 @@ async function getGeoInfo() {
       countryCode: d.country_code || '',
       city: d.city || 'неизвестно'
     };
-  } catch {
+  } catch (e) {
+    console.log('Гео не загрузилось:', e);
     return { ip:'неизвестно', country:'неизвестно', countryCode:'', city:'неизвестно' };
   }
 }
@@ -100,7 +101,15 @@ let myGeo = { ip:'неизвестно', country:'неизвестно', country
 getGeoInfo().then(g => myGeo = g);
 
 window.addEventListener('load', () => {
-  if (typeof firebase === 'undefined') return;
+  console.log('Страница загружена');
+
+  if (typeof firebase === 'undefined') {
+    console.error('Firebase SDK не загрузился (блокировщик или сеть?)');
+    document.getElementById('status').innerHTML = '<span style="color:#f44">Firebase не загрузился — проверь блокировщики / интернет</span>';
+    return;
+  }
+
+  console.log('Firebase SDK найден, инициализация...');
 
   const config = {
     apiKey: "AIzaSyBzPbPhYS7dDfhDwaqYLAHpIV6QBN53EV0",
@@ -111,8 +120,11 @@ window.addEventListener('load', () => {
     messagingSenderId: "64773662070",
     appId: "1:64773662070:web:59a5ade363119a1b61c657"
   };
+
   firebase.initializeApp(config);
   const db = firebase.database();
+
+  console.log('Firebase инициализирован');
 
   let username = localStorage.getItem('nick') || prompt('Ваш ник');
   localStorage.setItem('nick', username);
@@ -131,7 +143,9 @@ window.addEventListener('load', () => {
     geo: myGeo,
     time: Date.now(),
     device: navigator.userAgent.includes('Mobile') ? '📱' : '🖥️'
-  });
+  }).then(() => console.log('Онлайн-статус установлен'))
+  .catch(e => console.error('Ошибка установки онлайн-статуса:', e));
+
   onlineRef.onDisconnect().remove();
 
   const terminal = document.getElementById('terminal');
@@ -158,7 +172,7 @@ window.addEventListener('load', () => {
       if (!u) continue;
       count++;
 
-      let line = u.username || uid;
+      let line = (u.username || uid);
 
       if (u.geo && u.geo.country !== 'неизвестно') {
         const flag = getFlagEmoji(u.geo.countryCode);
@@ -180,15 +194,29 @@ window.addEventListener('load', () => {
     onlineListEl.style.display = onlineListEl.style.display === 'block' ? 'none' : 'block';
   };
 
-  // Остальной твой код (друзья, лобби, сообщения, ввод и т.д.) — вставь сюда
-  // Я не дублирую весь большой блок, чтобы не засорять — просто замени часть выше
+  // Статус подключения
+  db.ref('.info/connected').on('value', snap => {
+    if (snap.val()) {
+      statusEl.innerHTML = '<span style="color:#0f0">● Онлайн</span>';
+    } else {
+      statusEl.innerHTML = '<span style="color:#f44">● Оффлайн (проверь интернет / блокировщики)</span>';
+    }
+  });
 
-  // Пример: вставь сюда свой код с друзьями и комнатами
+  // Typing
+  typingRef.on('value', s => {
+    const others = Object.keys(s.val() || {}).filter(u => u !== username);
+    typingEl.style.display = others.length ? 'block' : 'none';
+    typingEl.textContent = others.length ? '✍️ кто-то печатает…' : '';
+  });
 
   // Боковая панель
   menuBtn.onclick = () => sidebar.classList.toggle('open');
 
-  // ... (твой код с друзьями, комнатами, вводом сообщений, typing и т.д.)
+  // ... (вставь сюда свой код с друзьями, лобби, вводом сообщений и т.д.)
+  // Я не дублирую весь большой блок, чтобы не засорять — просто замени часть выше на эту
+
+  console.log('Инициализация завершена');
 });
 </script>
 </body>
