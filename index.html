@@ -12,7 +12,6 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:monospace; height:100vh; o
 #top-bar { position:fixed; top:0; left:0; right:0; height:48px; background:#111; border-bottom:1px solid #222; display:flex; align-items:center; justify-content:space-between; padding:0 16px; z-index:20; }
 #menu-btn { cursor:pointer; font-size:22px; color:#0af; }
 #title { font-size:16px; font-weight:bold; }
-#online { cursor:pointer; color:#0f0; font-weight:bold; margin-left:20px; }
 #lobby-icon { cursor:pointer; font-size:20px; color:#0f0; }
 #sidebar { position:fixed; left:0; top:48px; bottom:0; width:260px; background:#111; border-right:1px solid #222; padding:20px; transform:translateX(-100%); transition:transform 0.3s ease; z-index:15; overflow-y:auto; }
 #sidebar.open { transform:translateX(0); }
@@ -29,11 +28,13 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:monospace; height:100vh; o
 .separator { color:#555; margin:0 4px; }
 #input-area { position:fixed; bottom:36px; left:0; right:0; padding:12px 16px; background:#0a0a0a; border-top:1px solid #222; }
 #input { width:100%; background:#1a1a1a; color:#fff; border:1px solid #333; border-radius:8px; padding:12px 16px; font-size:16px; outline:none; }
-#status { position:fixed; bottom:0; left:0; right:0; height:36px; background:#111; color:#888; font-size:13px; display:flex; align-items:center; padding:0 16px; border-top:1px solid #222; }
-#typing { position:fixed; bottom:76px; left:16px; color:#777; font-size:13px; display:none; }
-#onlineList { display:none; position:absolute; top:48px; left:50%; transform:translateX(-50%); background:#111; border:1px solid #333; border-radius:8px; padding:12px; width:280px; max-height:400px; overflow-y:auto; box-shadow:0 10px 30px rgba(0,0,0,0.7); z-index:30; }
+#status-bar { position:fixed; bottom:0; left:0; right:0; height:36px; background:#111; color:#888; font-size:13px; display:flex; align-items:center; justify-content:space-between; padding:0 16px; border-top:1px solid #222; }
+#status { flex:1; }
+#online { cursor:pointer; color:#0f0; font-weight:bold; }
+#onlineList { display:none; position:absolute; bottom:36px; left:50%; transform:translateX(-50%); background:#111; border:1px solid #333; border-radius:8px; padding:12px; width:280px; max-height:400px; overflow-y:auto; box-shadow:0 10px 30px rgba(0,0,0,0.7); z-index:30; }
 .ip-info { color:#888; font-size:11px; margin-left:8px; }
 .flag { font-size:15px; margin-right:4px; }
+#typing { position:fixed; bottom:76px; left:16px; color:#777; font-size:13px; display:none; }
 </style>
 </head>
 <body>
@@ -41,11 +42,8 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:monospace; height:100vh; o
 <div id="top-bar">
   <span id="menu-btn">☰</span>
   <div id="title">CLI Chat</div>
-  <span id="online">В сети: 0</span>
   <span id="lobby-icon">🏠</span>
 </div>
-
-<div id="onlineList"></div>
 
 <div id="sidebar">
   <div class="sidebar-title">Друзья</div>
@@ -65,7 +63,13 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:monospace; height:100vh; o
   <input id="input" placeholder="Сообщение... (Enter)">
 </div>
 
-<div id="status">Подключение...</div>
+<div id="status-bar">
+  <div id="status">Подключение...</div>
+  <span id="online">В сети: 0</span>
+</div>
+
+<div id="onlineList"></div>
+
 <div id="typing">✍️ кто-то печатает…</div>
 
 <script>
@@ -75,18 +79,20 @@ function getFlagEmoji(code) {
   return String.fromCodePoint(...code.toUpperCase().split('').map(c => 127397 + c.charCodeAt(0)));
 }
 
-// Получаем гео + IP
+// Получаем IP и гео-данные через ipinfo.io
 async function getGeoInfo() {
   try {
-    const res = await fetch('https://ipapi.co/json/');
+    const res = await fetch('https://ipinfo.io/json?token=free');
     const d = await res.json();
     return {
       ip: d.ip || 'неизвестно',
-      country: d.country_name || 'неизвестно',
-      countryCode: d.country_code || '',
+      country: d.country || 'неизвестно',
+      countryCode: d.country || '',
       city: d.city || 'неизвестно'
     };
-  } catch { return { ip:'неизвестно', country:'неизвестно', countryCode:'', city:'неизвестно' }; }
+  } catch {
+    return { ip:'неизвестно', country:'неизвестно', countryCode:'', city:'неизвестно' };
+  }
 }
 
 let myGeo = { ip:'неизвестно', country:'неизвестно', countryCode:'', city:'неизвестно' };
@@ -95,7 +101,7 @@ getGeoInfo().then(g => myGeo = g);
 window.addEventListener('load', () => {
   if (typeof firebase === 'undefined') return;
 
-  const config = { /* твой config */ 
+  const config = {
     apiKey: "AIzaSyBzPbPhYS7dDfhDwaqYLAHpIV6QBN53EV0",
     authDomain: "project-7979939474542798395.firebaseapp.com",
     databaseURL: "https://project-7979939474542798395-default-rtdb.europe-west1.firebasedatabase.app",
@@ -141,11 +147,12 @@ window.addEventListener('load', () => {
     terminal.scrollTop = terminal.scrollHeight;
   }
 
-  // Список «В сети»
+  // Список «В сети» — флаги + страна + город всем, IP — только админам
   db.ref('online').on('value', snap => {
     const users = snap.val() || {};
     let count = 0;
     let html = '';
+
     for (let uid in users) {
       const u = users[uid];
       if (!u) continue;
@@ -153,19 +160,18 @@ window.addEventListener('load', () => {
 
       let line = (u.username || uid);
 
-      // Флаг + страна + город (видят все)
       if (u.geo && u.geo.country !== 'неизвестно') {
         const flag = getFlagEmoji(u.geo.countryCode);
         line += ` <span class="flag">${flag}</span> ${u.geo.country}, ${u.geo.city}`;
       }
 
-      // IP — только админы
       if ((role === 'ADMIN' || role === 'OWNER') && u.geo?.ip) {
         line += ` <span class="ip-info">[IP: ${u.geo.ip}]</span>`;
       }
 
       html += `<div>${line}</div>`;
     }
+
     onlineEl.textContent = `В сети: ${count}`;
     onlineListEl.innerHTML = html || '(пусто)';
   });
@@ -174,11 +180,10 @@ window.addEventListener('load', () => {
     onlineListEl.style.display = onlineListEl.style.display === 'block' ? 'none' : 'block';
   };
 
-  // Остальной код (сообщения, друзья, лобби, ввод) — без изменений
-  // (я оставил твой оригинальный код дальше, просто добавил онлайн)
-
+  // Остальной код (сообщения, друзья, лобби, ввод, typing, статус) — без изменений
   let currentRoomId = null;
   let messagesRef = db.ref('messages');
+
   const params = new URLSearchParams(window.location.search);
   currentRoomId = params.get('room');
   const enteredPassword = params.get('password');
@@ -190,9 +195,10 @@ window.addEventListener('load', () => {
     });
   }
 
-  // ... (весь твой остальной код с друзьями, лобби, вводом, typing и т.д. — оставь как было)
+  // ... (вставь сюда весь остальной твой код с друзьями, лобби, вводом сообщений, typing и т.д.)
+  // Я не дублирую весь большой блок, чтобы не засорять ответ — просто замени часть выше на эту
 
-  // (Для экономии места я не дублирую весь твой большой блок ниже — просто вставь этот код вместо старого)
+  // (добавь свой код для друзей, комнат, сообщений и т.д. после этого комментария)
 });
 </script>
 </body>
